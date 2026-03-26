@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Login — CORS Vuln Checker</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #08090d;
+    --surf:    #0d1018;
+    --surf2:   #121520;
+    --border:  #1c2130;
+    --accent:  #00ffa3;
+    --red:     #ff4455;
+    --yellow:  #ffd32a;
+    --blue:    #4ea8ff;
+    --purple:  #b06fff;
+    --text:    #cfd8ec;
+    --dim:     #d1dbe8;
+    --mono:    'JetBrains Mono', monospace;
+  }
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+  html, body {
+    width:100vw; height:100vh; overflow:hidden;
+    background:var(--bg); color:var(--text);
+    font-family:var(--mono); font-size:13px;
+  }
+
+  body::before {
+    content:''; position:fixed; inset:0;
+    background-image: radial-gradient(circle, rgba(0,255,163,0.045) 1px, transparent 1px);
+    background-size:30px 30px; pointer-events:none; z-index:0;
+  }
+
+  .login-wrap {
+    position:relative; z-index:1;
+    width:100vw; height:100vh;
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:24px;
+  }
+
+  .login-brand {
+    display:flex; align-items:center; gap:14px; margin-bottom:8px;
+  }
+  .login-brand h1 {
+    font-family:'Syne',sans-serif; font-size:22px; font-weight:800;
+    color:#fff; letter-spacing:-.3px;
+  }
+  .login-brand h1 em { color:var(--accent); font-style:normal; text-shadow:0 0 18px rgba(0,255,163,.5); }
+  .login-brand .chip {
+    font-size:9px; letter-spacing:2.5px; text-transform:uppercase;
+    color:var(--purple); border:1px solid rgba(176,111,255,.28);
+    background:rgba(176,111,255,.07); padding:2px 9px;
+  }
+
+  .login-box {
+    width:420px; max-width:92vw;
+    background:var(--surf);
+    border:1px solid var(--border);
+    box-shadow: 0 0 60px rgba(0,0,0,.4), 0 0 120px rgba(176,111,255,.04);
+    overflow:hidden;
+  }
+
+  .login-header {
+    display:flex; align-items:center; gap:10px;
+    padding:14px 24px;
+    background:rgba(176,111,255,.04);
+    border-bottom:1px solid var(--border);
+  }
+  .login-header .lh-dot {
+    width:8px; height:8px; border-radius:50%; background:var(--purple);
+    box-shadow:0 0 8px rgba(176,111,255,.5);
+  }
+  .login-header .lh-title {
+    font-size:10px; letter-spacing:2.5px; text-transform:uppercase;
+    color:var(--purple); font-weight:600;
+  }
+
+  .login-body {
+    padding:28px 24px 24px;
+    display:flex; flex-direction:column; gap:16px;
+  }
+
+  .field-label {
+    font-size:9px; letter-spacing:2px; text-transform:uppercase;
+    color:var(--dim); margin-bottom:5px;
+  }
+
+  .login-input {
+    width:100%; height:40px;
+    background:rgba(0,0,0,.5); border:1px solid var(--border);
+    color:#fff; font-family:var(--mono); font-size:12px;
+    padding:0 14px; outline:none; transition:border-color .15s;
+  }
+  .login-input:focus { border-color:var(--purple); box-shadow:0 0 0 1px rgba(176,111,255,.15); }
+  .login-input::placeholder { color:var(--dim); font-size:11px; }
+
+  .captcha-box {
+    display:flex; align-items:center; gap:12px;
+    padding:12px 16px;
+    background:rgba(0,255,163,.04);
+    border:1px solid rgba(0,255,163,.15);
+  }
+  .captcha-icon { font-size:22px; flex-shrink:0; }
+  .captcha-question {
+    font-family:'Syne',sans-serif; font-size:18px; font-weight:700;
+    color:var(--accent); flex:1;
+    text-shadow:0 0 14px rgba(0,255,163,.3);
+    letter-spacing:1px;
+  }
+  .captcha-eq {
+    font-size:18px; color:var(--dim); margin:0 4px;
+  }
+  .captcha-input {
+    width:70px; height:36px;
+    background:rgba(0,0,0,.5); border:1px solid var(--border);
+    color:var(--accent); font-family:var(--mono); font-size:14px;
+    text-align:center; outline:none; font-weight:700;
+    transition:border-color .15s;
+  }
+  .captcha-input:focus { border-color:var(--accent); }
+  .captcha-refresh {
+    width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,.3); border:1px solid var(--border);
+    color:var(--dim); font-size:14px; cursor:pointer;
+    transition:all .15s; flex-shrink:0;
+  }
+  .captcha-refresh:hover { border-color:var(--accent); color:var(--accent); }
+
+  .login-btn {
+    width:100%; height:42px;
+    background:var(--purple); color:#fff; border:none;
+    font-family:'Syne',sans-serif; font-weight:700;
+    font-size:12px; letter-spacing:2px; text-transform:uppercase;
+    cursor:pointer; transition:all .15s;
+  }
+  .login-btn:hover { background:#c084ff; box-shadow:0 0 20px rgba(176,111,255,.4); }
+  .login-btn:disabled { opacity:.4; cursor:not-allowed; }
+
+  .error-msg {
+    display:none; padding:10px 14px;
+    font-size:11px; color:var(--red);
+    background:rgba(255,68,85,.06);
+    border:1px solid rgba(255,68,85,.2);
+    line-height:1.6; text-align:center;
+    animation:shake .3s ease;
+  }
+  .error-msg.on { display:block; }
+  @keyframes shake {
+    0%,100% { transform:translateX(0); }
+    25% { transform:translateX(-6px); }
+    75% { transform:translateX(6px); }
+  }
+
+  .lockout-msg {
+    display:none; padding:14px;
+    text-align:center; font-size:12px;
+    color:var(--yellow); background:rgba(255,211,42,.06);
+    border:1px solid rgba(255,211,42,.2);
+    line-height:1.6;
+  }
+  .lockout-msg.on { display:block; }
+  .lockout-timer {
+    font-family:'Syne',sans-serif; font-size:28px; font-weight:800;
+    color:var(--yellow); text-shadow:0 0 18px rgba(255,211,42,.4);
+    margin-top:6px;
+  }
+
+  .login-footer {
+    padding:14px 24px;
+    border-top:1px solid var(--border);
+    text-align:center;
+  }
+  .login-footer a {
+    font-size:10px; color:var(--dim); text-decoration:none;
+    letter-spacing:.5px; transition:color .15s;
+  }
+  .login-footer a:hover { color:var(--accent); }
+
+  .security-badges {
+    display:flex; gap:8px; justify-content:center; flex-wrap:wrap;
+  }
+  .sec-badge {
+    font-size:8.5px; letter-spacing:1.5px; text-transform:uppercase;
+    padding:3px 10px; border:1px solid var(--border);
+    color:var(--dim); background:rgba(0,0,0,.3);
+  }
+
+  /* Glowing border animation */
+  @keyframes borderGlow {
+    0%, 100% { box-shadow: 0 0 20px rgba(176,111,255,.05); }
+    50% { box-shadow: 0 0 40px rgba(176,111,255,.12); }
+  }
+  .login-box { animation: borderGlow 3s ease-in-out infinite; }
+</style>
+</head>
+<body>
+<div class="login-wrap">
+
+  <div class="login-brand">
+    <h1>CORS <em>Vuln</em> Checker</h1>
+    <span class="chip">Admin Panel</span>
+  </div>
+
+  <div class="login-box">
+    <div class="login-header">
+      <div class="lh-dot"></div>
+      <div class="lh-title">// Secure Authentication</div>
+    </div>
+
+    <div class="login-body" id="loginBody">
+      <div>
+        <div class="field-label">Username</div>
+        <input class="login-input" id="username" type="text" placeholder="Enter admin username" autocomplete="off" />
+      </div>
+      <div>
+        <div class="field-label">Password</div>
+        <input class="login-input" id="password" type="password" placeholder="Enter password" />
+      </div>
+
+      <div class="captcha-box" id="captchaBox">
+        <div class="captcha-icon">🧮</div>
+        <div class="captcha-question" id="captchaQuestion">Loading…</div>
+        <span class="captcha-eq">=</span>
+        <input class="captcha-input" id="captchaAnswer" type="text" placeholder="?" maxlength="5" autocomplete="off" />
+        <div class="captcha-refresh" onclick="loadCaptcha()" title="New CAPTCHA">↻</div>
+      </div>
+
+      <div class="error-msg" id="errorMsg"></div>
+      <div class="lockout-msg" id="lockoutMsg">
+        ⏳ Too many failed attempts.<br>
+        Try again in: <div class="lockout-timer" id="lockoutTimer">30</div>
+      </div>
+
+      <button class="login-btn" id="loginBtn" onclick="doLogin()">🔐 Authenticate</button>
+    </div>
+
+    <div class="login-footer">
+      <a href="/">← Back to Scanner</a>
+    </div>
+  </div>
+
+  <div class="security-badges">
+    <span class="sec-badge">🔒 CAPTCHA Protected</span>
+    <span class="sec-badge">🛡️ Rate Limited</span>
+    <span class="sec-badge">⚡ SHA-256 Hashing</span>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<script>
+let currentCaptchaId = '';
+let lockoutInterval = null;
+
+// SHA-256 helper using CryptoJS (works over HTTP for LAN testing in Burp)
+async function sha256(message) {
+  return CryptoJS.SHA256(message).toString(CryptoJS.enc.Hex);
+}
+
+async function loadCaptcha() {
+  try {
+    const res = await fetch('/api/captcha');
+    const data = await res.json();
+    currentCaptchaId = data.captcha_id;
+    document.getElementById('captchaQuestion').textContent = data.question;
+    document.getElementById('captchaAnswer').value = '';
+
+    if (data.locked) {
+      showLockout(data.lockout_remaining);
+    }
+  } catch (err) {
+    document.getElementById('captchaQuestion').textContent = 'Error loading CAPTCHA';
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg;
+  el.classList.add('on');
+  // Re-trigger shake animation
+  el.style.animation = 'none';
+  el.offsetHeight; // trigger reflow
+  el.style.animation = '';
+}
+
+function hideError() {
+  document.getElementById('errorMsg').classList.remove('on');
+}
+
+function showLockout(seconds) {
+  const loginBody = document.getElementById('loginBody');
+  const btn = document.getElementById('loginBtn');
+  const lockout = document.getElementById('lockoutMsg');
+  const timer = document.getElementById('lockoutTimer');
+
+  btn.disabled = true;
+  lockout.classList.add('on');
+  hideError();
+
+  let remaining = seconds;
+  timer.textContent = remaining + 's';
+
+  if (lockoutInterval) clearInterval(lockoutInterval);
+  lockoutInterval = setInterval(() => {
+    remaining--;
+    timer.textContent = remaining + 's';
+    if (remaining <= 0) {
+      clearInterval(lockoutInterval);
+      lockout.classList.remove('on');
+      btn.disabled = false;
+      loadCaptcha();
+    }
+  }, 1000);
+}
+
+async function doLogin() {
+  hideError();
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  const captchaAnswer = document.getElementById('captchaAnswer').value.trim();
+
+  if (!username || !password) {
+    showError('Please enter username and password.');
+    return;
+  }
+  if (!captchaAnswer) {
+    showError('Please solve the CAPTCHA.');
+    return;
+  }
+
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Verifying…';
+
+  try {
+    // 1. Hash the password first (this matches what the server stored as pass_hash)
+    const passHash = await sha256(password);
+    // 2. Hash(passHash + challengeToken) -> this prevents replay attacks and packet sniffing
+    const clientHash = await sha256(passHash + currentCaptchaId);
+    // 3. Hash(username + challengeToken) -> hides username from packet sniffers
+    const unameHash = await sha256(username + currentCaptchaId);
+
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_uname_hash: unameHash,
+        client_hash: clientHash,
+        captcha_id: currentCaptchaId,
+        captcha_answer: captchaAnswer
+      })
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      // Re-calculate the expected signature to verify the response wasn't manipulated
+      // signature = SHA256(token + clientHash + currentCaptchaId)
+      const expectedSignature = await sha256(data.token + clientHash + currentCaptchaId);
+
+      if (data.signature !== expectedSignature) {
+        showError('Security Error: Server response manipulation detected!');
+        btn.disabled = false;
+        btn.textContent = '🔐 Authenticate';
+        return;
+      }
+
+      btn.textContent = '✔ Authenticated';
+      btn.style.background = '#00ffa3';
+      btn.style.color = '#000';
+      sessionStorage.setItem('admin_token', data.token);
+      setTimeout(() => { window.location.href = '/dashboard'; }, 600);
+    } else {
+      showError(data.error || 'Login failed.');
+      if (data.locked) {
+        showLockout(data.lockout_remaining);
+      }
+      loadCaptcha();
+      btn.disabled = false;
+      btn.textContent = '🔐 Authenticate';
+    }
+  } catch (err) {
+    showError('Connection error. Is the server running?');
+    btn.disabled = false;
+    btn.textContent = '🔐 Authenticate';
+  }
+}
+
+// Enter key support
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+// Load CAPTCHA on page load
+loadCaptcha();
+</script>
+</body>
+</html>

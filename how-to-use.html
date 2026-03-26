@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How to Use — CORS Exploit Scanner</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#08090d;--surf:#0d1018;--surf2:#121520;--border:#1c2130;
+    --accent:#00ffa3;--red:#ff4455;--yellow:#ffd32a;--blue:#4ea8ff;
+    --purple:#b06fff;--text:#cfd8ec;--dim:#d1dbe8;--mono:'JetBrains Mono',monospace;
+  }
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;line-height:1.6}
+  body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(circle,rgba(0,255,163,.045) 1px,transparent 1px);background-size:30px 30px;pointer-events:none;z-index:0}
+  
+  .container { max-width:800px; margin:0 auto; padding:60px 20px; position:relative; z-index:1; }
+  
+  .header { display:flex; align-items:center; justify-content:space-between; margin-bottom:40px; border-bottom:1px solid var(--border); padding-bottom:20px; }
+  .brand h1 { font-family:'Syne',sans-serif; font-size:24px; font-weight:800; color:#fff; letter-spacing:-.3px; }
+  .brand h1 em { color:var(--blue); font-style:normal; text-shadow:0 0 18px rgba(78,168,255,.5); }
+  .chip { font-size:10px; letter-spacing:2.5px; text-transform:uppercase; color:var(--blue); border:1px solid rgba(78,168,255,.3); background:rgba(78,168,255,.07); padding:3px 10px; margin-left:15px; }
+  
+  .back-btn { text-decoration:none; color:var(--dim); font-size:11px; letter-spacing:1px; border:1px solid var(--border); padding:6px 12px; transition:all .15s; text-transform:uppercase; }
+  .back-btn:hover { border-color:var(--accent); color:var(--accent); }
+  
+  h2 { font-family:'Syne',sans-serif; font-size:18px; color:#fff; margin:30px 0 15px; border-left:3px solid var(--accent); padding-left:15px; }
+  h3 { color:var(--accent); font-size:13px; margin:20px 0 10px; letter-spacing:1px; text-transform:uppercase; }
+  p { color:var(--dim); margin-bottom:15px; }
+  ul { list-style:none; margin-bottom:20px; padding-left:15px; }
+  li { position:relative; margin-bottom:8px; color:var(--dim); }
+  li::before { content:'►'; position:absolute; left:-18px; color:var(--blue); font-size:9px; top:4px; }
+  strong { color:#fff; }
+  
+  .code-block { background:rgba(0,0,0,.5); border:1px solid var(--border); padding:15px; border-radius:4px; color:var(--accent); font-size:11.5px; overflow-x:auto; margin-bottom:20px; }
+  
+  .step-box { background:var(--surf2); border:1px solid var(--border); padding:20px; margin-bottom:15px; border-left:3px solid var(--blue); }
+  .step-box h4 { font-family:'Syne',sans-serif; font-size:15px; color:var(--blue); margin-bottom:8px; }
+  
+  .mech { display:flex; gap:15px; margin-bottom:20px; align-items:flex-start; }
+  .mech-icon { font-size:24px; background:rgba(255,68,85,.1); color:var(--red); width:50px; height:50px; display:flex; align-items:center; justify-content:center; border:1px solid rgba(255,68,85,.3); flex-shrink:0; }
+  
+  .alert { background:rgba(255,211,42,.05); border:1px solid rgba(255,211,42,.2); padding:15px; color:var(--yellow); font-size:11.5px; margin-bottom:20px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="brand">
+      <h1>CORS <em>Documentation</em></h1>
+      <span class="chip">How it works</span>
+    </div>
+    <a href="/" class="back-btn">← Back to Scanner</a>
+  </div>
+
+  <h2>How to Use the Scanner</h2>
+  <p>The CORS Exploit Scanner is designed to test APIs for Cross-Origin Resource Sharing (CORS) misconfigurations. Follow these steps to audit an endpoint:</p>
+  
+  <div class="step-box">
+    <h4>1. Enter Target & HTTP Method</h4>
+    <p>Paste the full URL of the API endpoint you want to test (e.g., <code>https://api.example.com/v1/user</code>). Select the HTTP method required by that endpoint (GET, POST, PUT, DELETE, OPTIONS, PATCH).</p>
+  </div>
+  
+  <div class="step-box" style="border-left-color:var(--red);">
+    <h4><span style="color:var(--red);">2. Select Scan Mode</span></h4>
+    <p>Choose your desired testing capability:</p>
+    <ul>
+      <li><strong>Normal:</strong> Tests 11 fundamental CORS misconfigurations (wildcards, null origin, basic reflection). Fast and quiet.</li>
+      <li><strong>⚡ Aggressive:</strong> Tests all 56+ exploit vectors, covering domain spoofing, protocol abuse, encoding tricks, and header manipulation.</li>
+      <li><strong>👻 Stealth:</strong> Same as Aggressive, but uses randomized delays (300ms - 1000ms) between requests to evade Web Application Firewalls (WAFs).</li>
+    </ul>
+  </div>
+  
+  <div class="step-box" style="border-left-color:var(--purple);">
+    <h4><span style="color:var(--purple);">3. Configure Authentication (Crucial)</span></h4>
+    <p>CORS vulnerabilities are often only dangerous if the endpoint returns sensitive data. To test authenticated endpoints:</p>
+    <ul>
+      <li><strong>Credentials Toggle:</strong> Enable this if the target uses browser-based Session Cookies. The scanner will attach the cookies active in your current browser session.</li>
+      <li><strong>Cookie / Bearer Token Input:</strong> Manually paste a grabbed session cookie or JWT token if you are testing an external target.</li>
+    </ul>
+  </div>
+
+  <div class="step-box" style="border-left-color:var(--accent);">
+    <h4>4. Review Findings & Generate Exploits</h4>
+    <p>After clicking <strong>EXPLOIT SCAN</strong>, the 3-panel dashboard will populate. You can <strong>drag the vertical borders</strong> between the panels to resize them.</p>
+    <p>If a vulnerability is found, check the <strong>Risk & Exploits</strong> panel. The tool automatically writes ready-to-use Proof-of-Concept (PoC) code in HTML, Fetch JS, XHR, cURL, and Python that you can instantly copy and execute to verify the exploit.</p>
+  </div>
+
+  <hr style="border:0; border-bottom:1px solid var(--border); margin:40px 0;">
+
+  <h2>How the Tool Finds Vulnerabilities</h2>
+  <p>The core mechanic of CORS (Cross-Origin Resource Sharing) relies on the server inspecting the <code>Origin</code> HTTP header sent by the browser, and in return, deciding whether to append the <code>Access-Control-Allow-Origin</code> (ACAO) and <code>Access-Control-Allow-Credentials</code> (ACAC) headers.</p>
+  
+  <p>If a server simply reflects whatever is in the <code>Origin</code> header back into the ACAO header, it essentially bypasses the Same-Origin Policy (SOP).</p>
+
+  <h3>Detection Methodology</h3>
+  <p>Our scanner automates the process of "fuzzing" the <code>Origin</code> header to trick the target server's validation logic.</p>
+
+  <div class="mech">
+    <div class="mech-icon">1</div>
+    <div>
+      <h4 style="color:#fff; margin-bottom:5px;">Payload Injection</h4>
+      <p style="font-size:12px;">The scanner takes the target's URL and strips it down to its base domain. It then dynamically generates 56+ malicious origin payloads. For example, if the target is <code>api.target.com</code>, it will generate payloads like <code>https://api.target.com.evil.com</code> (suffix bypass), <code>https://api.target.com%00.evil.com</code> (null byte injection), or <code>http://api.target.com</code> (HTTP downgrade).</p>
+    </div>
+  </div>
+
+  <div class="mech">
+    <div class="mech-icon">2</div>
+    <div>
+      <h4 style="color:#fff; margin-bottom:5px;">Cross-Origin Execution</h4>
+      <p style="font-size:12px;">The tool issues asynchronous HTTP requests from your browser context to the target, attaching these crafted <code>Origin</code> headers. It monitors the HTTP response status, body, and specifically the CORS security headers.</p>
+    </div>
+  </div>
+
+  <div class="mech">
+    <div class="mech-icon">3</div>
+    <div>
+      <h4 style="color:#fff; margin-bottom:5px;">Classification & Validation</h4>
+      <p style="font-size:12px;">A vulnerability is only confirmed if the server responds gracefully (e.g., HTTP 200 OK) <strong>AND</strong> the <code>Access-Control-Allow-Origin</code> header matches our malicious injected origin.</p>
+      <div class="code-block">
+        HTTP/1.1 200 OK<br>
+        Access-Control-Allow-Origin: https://api.target.com.evil.com<br>
+        Access-Control-Allow-Credentials: true
+      </div>
+      <p style="font-size:12px;">If <code>Allow-Credentials: true</code> is present alongside an attacker-controlled origin, the vulnerability is flagged as <strong>CRITICAL</strong>, meaning an attacker can steal authenticated session data on behalf of a victim.</p>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

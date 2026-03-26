@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard — CORS Vuln Checker</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #08090d;
+    --surf:    #0d1018;
+    --surf2:   #121520;
+    --border:  #1c2130;
+    --accent:  #00ffa3;
+    --red:     #ff4455;
+    --yellow:  #ffd32a;
+    --blue:    #4ea8ff;
+    --purple:  #b06fff;
+    --text:    #cfd8ec;
+    --dim:     #d1dbe8;
+    --mono:    'JetBrains Mono', monospace;
+  }
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+  html, body {
+    width:100%; min-height:100vh;
+    background:var(--bg); color:var(--text);
+    font-family:var(--mono); font-size:13px;
+  }
+  body::before {
+    content:''; position:fixed; inset:0;
+    background-image: radial-gradient(circle, rgba(0,255,163,0.045) 1px, transparent 1px);
+    background-size:30px 30px; pointer-events:none; z-index:0;
+  }
+
+  .dash { position:relative; z-index:1; min-height:100vh; display:flex; flex-direction:column; }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 24px; height:48px;
+    background:var(--surf); border-bottom:1px solid var(--border);
+    flex-shrink:0;
+  }
+  .brand { display:flex; align-items:center; gap:12px; }
+  .brand h1 {
+    font-family:'Syne',sans-serif; font-size:17px; font-weight:800;
+    color:#fff; letter-spacing:-.3px;
+  }
+  .brand h1 em { color:var(--accent); font-style:normal; text-shadow:0 0 18px rgba(0,255,163,.5); }
+  .chip {
+    font-size:9px; letter-spacing:2.5px; text-transform:uppercase;
+    color:var(--purple); border:1px solid rgba(176,111,255,.28);
+    background:rgba(176,111,255,.07); padding:2px 9px;
+  }
+
+  .top-actions { display:flex; align-items:center; gap:10px; }
+  .top-btn {
+    height:30px; padding:0 14px;
+    font-family:var(--mono); font-size:10px; letter-spacing:1px;
+    border:1px solid var(--border); background:rgba(0,0,0,.3);
+    color:var(--dim); cursor:pointer; transition:all .15s;
+    display:flex; align-items:center; gap:6px; text-transform:uppercase;
+  }
+  .top-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .top-btn.red:hover { border-color:var(--red); color:var(--red); }
+  .top-btn.purple { border-color:rgba(176,111,255,.3); color:var(--purple); }
+  .top-btn.purple:hover { border-color:var(--purple); background:rgba(176,111,255,.08); }
+
+  /* ── STATS ── */
+  .stats-row {
+    display:grid; grid-template-columns:repeat(5,1fr);
+    gap:1px; background:var(--border);
+    border-bottom:1px solid var(--border);
+  }
+  .stat-card {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:18px 12px; background:var(--surf);
+    gap:6px; transition:background .15s;
+  }
+  .stat-card:hover { background:var(--surf2); }
+  .stat-icon { font-size:20px; }
+  .stat-value {
+    font-family:'Syne',sans-serif; font-size:28px; font-weight:800;
+    line-height:1;
+  }
+  .stat-value.green  { color:var(--accent); text-shadow:0 0 16px rgba(0,255,163,.3); }
+  .stat-value.red    { color:var(--red);    text-shadow:0 0 16px rgba(255,68,85,.3); }
+  .stat-value.yellow { color:var(--yellow); text-shadow:0 0 16px rgba(255,211,42,.3); }
+  .stat-value.blue   { color:var(--blue);   text-shadow:0 0 16px rgba(78,168,255,.3); }
+  .stat-value.purple { color:var(--purple); text-shadow:0 0 16px rgba(176,111,255,.3); }
+  .stat-label {
+    font-size:9px; letter-spacing:2px; text-transform:uppercase;
+    color:var(--dim);
+  }
+
+  /* ── FILTERS ── */
+  .filter-bar {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 24px;
+    background:var(--surf2); border-bottom:1px solid var(--border);
+  }
+  .filter-input {
+    height:32px; flex:1; max-width:400px;
+    background:rgba(0,0,0,.5); border:1px solid var(--border);
+    color:#fff; font-family:var(--mono); font-size:11px;
+    padding:0 12px; outline:none; transition:border-color .15s;
+  }
+  .filter-input:focus { border-color:var(--accent); }
+  .filter-input::placeholder { color:var(--dim); font-size:10px; }
+
+  .filter-tags { display:flex; gap:5px; flex-wrap:wrap; }
+  .ftag {
+    font-family:var(--mono); font-size:10px; padding:4px 10px;
+    border:1px solid var(--border); color:var(--dim);
+    background:rgba(0,0,0,.35); cursor:pointer; transition:all .12s;
+    user-select:none; letter-spacing:.6px;
+  }
+  .ftag.active { border-color:var(--accent); color:var(--accent); background:rgba(0,255,163,.08); }
+  .ftag.active-red { border-color:var(--red); color:var(--red); background:rgba(255,68,85,.08); }
+  .ftag.active-yellow { border-color:var(--yellow); color:var(--yellow); background:rgba(255,211,42,.08); }
+
+  .vsep { width:1px; height:22px; background:var(--border); flex-shrink:0; }
+  .filter-count {
+    font-size:10px; color:var(--dim); letter-spacing:.5px; flex-shrink:0;
+  }
+
+  /* ── TABLE ── */
+  .table-wrap {
+    flex:1; overflow:auto; padding:0;
+    scrollbar-width:thin; scrollbar-color:var(--border) transparent;
+  }
+  .table-wrap::-webkit-scrollbar { width:4px; }
+  .table-wrap::-webkit-scrollbar-thumb { background:var(--border); }
+
+  .scan-table { width:100%; border-collapse:collapse; }
+  .scan-table thead th {
+    position:sticky; top:0; z-index:2;
+    font-size:9px; letter-spacing:2px; color:var(--dim); text-transform:uppercase;
+    text-align:left; padding:10px 14px;
+    background:var(--surf); border-bottom:1px solid var(--border);
+    font-weight:400; cursor:pointer; transition:color .15s;
+    user-select:none;
+  }
+  .scan-table thead th:hover { color:var(--accent); }
+
+  .scan-table tbody tr {
+    border-bottom:1px solid rgba(28,33,48,.5);
+    transition:background .1s; cursor:pointer;
+  }
+  .scan-table tbody tr:hover { background:rgba(0,255,163,.03); }
+
+  .scan-table td {
+    padding:10px 14px; font-size:11px;
+    vertical-align:middle; white-space:nowrap;
+  }
+
+  .td-id { color:var(--dim); font-size:10px; width:50px; }
+  .td-time { color:var(--dim); font-size:10px; letter-spacing:.3px; }
+  .td-url { color:var(--text); max-width:300px; overflow:hidden; text-overflow:ellipsis; }
+  .td-method {
+    font-size:10px; padding:2px 8px; letter-spacing:.8px;
+    border:1px solid var(--border); color:var(--blue);
+    background:rgba(78,168,255,.06); display:inline-block;
+  }
+  .td-mode {
+    font-size:10px; padding:2px 8px; letter-spacing:.8px;
+    border:1px solid var(--border); color:var(--dim);
+    display:inline-block;
+  }
+  .td-mode.deep { color:var(--purple); border-color:rgba(176,111,255,.3); background:rgba(176,111,255,.06); }
+
+  .verdict-badge {
+    font-size:10px; padding:3px 10px; letter-spacing:.6px;
+    font-weight:600; display:inline-block;
+  }
+  .verdict-badge.safe     { color:var(--accent); border:1px solid rgba(0,255,163,.3); background:rgba(0,255,163,.08); }
+  .verdict-badge.vuln     { color:var(--red);    border:1px solid rgba(255,68,85,.3); background:rgba(255,68,85,.08); }
+  .verdict-badge.critical { color:#ff1122;       border:1px solid rgba(255,17,34,.4); background:rgba(255,17,34,.12); }
+  .verdict-badge.info     { color:var(--blue);   border:1px solid rgba(78,168,255,.3); background:rgba(78,168,255,.08); }
+
+  .risk-dot {
+    width:8px; height:8px; border-radius:50%; display:inline-block;
+  }
+  .risk-dot.high     { background:var(--red);    box-shadow:0 0 6px rgba(255,68,85,.5); }
+  .risk-dot.critical { background:#ff1122;       box-shadow:0 0 6px rgba(255,17,34,.5); }
+  .risk-dot.safe     { background:var(--accent); box-shadow:0 0 6px rgba(0,255,163,.5); }
+  .risk-dot.info     { background:var(--blue);   box-shadow:0 0 6px rgba(78,168,255,.5); }
+  .risk-dot.medium   { background:var(--yellow); box-shadow:0 0 6px rgba(255,211,42,.5); }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    display:flex; flex-direction:column; align-items:center;
+    justify-content:center; padding:60px 20px; gap:12px;
+    color:var(--dim);
+  }
+  .empty-state .icon { font-size:40px; }
+  .empty-state .msg {
+    font-size:11px; letter-spacing:1.5px; text-transform:uppercase;
+  }
+  .empty-state .sub { font-size:10px; opacity:.6; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display:none; position:fixed; inset:0; z-index:100;
+    background:rgba(0,0,0,.7); backdrop-filter:blur(4px);
+    align-items:center; justify-content:center;
+  }
+  .modal-overlay.on { display:flex; }
+  .modal {
+    width:700px; max-width:94vw; max-height:85vh;
+    background:var(--surf); border:1px solid var(--border);
+    box-shadow:0 0 80px rgba(0,0,0,.5);
+    display:flex; flex-direction:column; overflow:hidden;
+    animation:modalIn .2s ease;
+  }
+  @keyframes modalIn { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:none} }
+
+  .modal-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px;
+    background:rgba(176,111,255,.04);
+    border-bottom:1px solid var(--border);
+    flex-shrink:0;
+  }
+  .modal-header .mh-left { display:flex; align-items:center; gap:10px; }
+  .modal-header .mh-dot {
+    width:8px; height:8px; border-radius:50%; background:var(--purple);
+    box-shadow:0 0 8px rgba(176,111,255,.5);
+  }
+  .modal-header .mh-title {
+    font-size:10px; letter-spacing:2px; text-transform:uppercase;
+    color:var(--purple);
+  }
+  .modal-close {
+    width:28px; height:28px; display:flex; align-items:center; justify-content:center;
+    background:none; border:1px solid var(--border);
+    color:var(--dim); font-size:14px; cursor:pointer;
+    transition:all .15s;
+  }
+  .modal-close:hover { border-color:var(--red); color:var(--red); }
+
+  .modal-body {
+    flex:1; overflow:auto; padding:20px;
+    scrollbar-width:thin; scrollbar-color:var(--border) transparent;
+  }
+
+  .detail-section {
+    margin-bottom:16px;
+  }
+  .detail-title {
+    font-size:9px; letter-spacing:2px; text-transform:uppercase;
+    color:var(--accent); margin-bottom:8px;
+    padding-bottom:5px; border-bottom:1px solid var(--border);
+  }
+  .detail-title.red { color:var(--red); }
+  .detail-title.purple { color:var(--purple); }
+  .detail-title.yellow { color:var(--yellow); }
+
+  .detail-row {
+    display:grid; grid-template-columns:140px 1fr;
+    gap:1px; background:var(--border); margin-bottom:2px;
+  }
+  .detail-key {
+    background:rgba(0,0,0,.55); color:var(--accent);
+    padding:5px 10px; font-size:10.5px;
+  }
+  .detail-val {
+    background:rgba(0,0,0,.3); color:var(--text);
+    padding:5px 10px; font-size:10.5px; word-break:break-all;
+  }
+  .detail-val.red    { color:var(--red); }
+  .detail-val.green  { color:var(--accent); }
+  .detail-val.purple { color:var(--purple); }
+
+  .detail-code {
+    background:rgba(0,0,0,.5); border:1px solid var(--border);
+    padding:10px 12px; font-size:10.5px; line-height:1.65;
+    white-space:pre-wrap; word-break:break-all; color:var(--text);
+    max-height:200px; overflow:auto;
+  }
+
+  .findings-list { display:flex; flex-direction:column; gap:4px; }
+  .finding-item {
+    display:flex; align-items:center; gap:8px;
+    padding:6px 10px; font-size:10.5px;
+    border:1px solid rgba(255,68,85,.15); background:rgba(255,68,85,.04);
+    color:var(--text);
+  }
+  .finding-item.safe {
+    border-color:rgba(0,255,163,.15); background:rgba(0,255,163,.04);
+  }
+  .finding-icon { font-size:12px; flex-shrink:0; }
+
+  /* ── FOOTER ── */
+  .footer {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 24px; height:28px;
+    border-top:1px solid var(--border); background:var(--surf);
+    flex-shrink:0;
+  }
+  .footer-text { font-size:9px; color:var(--dim); letter-spacing:.3px; }
+</style>
+</head>
+<body>
+<div class="dash">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="brand">
+      <h1>CORS <em>Vuln</em> Checker</h1>
+      <span class="chip">Dashboard</span>
+    </div>
+    <div class="top-actions">
+      <button class="top-btn" onclick="window.open('/docs', '_blank')" style="border-color:rgba(78,168,255,.3); color:var(--blue);">📖 DOCS</button>
+      <button class="top-btn" onclick="location.href='/'">← Scanner</button>
+      <button class="top-btn" onclick="exportScans()">📥 Export JSON</button>
+      <button class="top-btn red" id="btnDeleteSel" onclick="deleteSelected()" style="display:none;">🗑 Delete Selected (0)</button>
+      <button class="top-btn red" id="btnClearAll" onclick="clearHistory()">🗑 Clear All</button>
+      <button class="top-btn purple" onclick="logout()">⏻ Logout</button>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card">
+      <div class="stat-icon">📊</div>
+      <div class="stat-value blue" id="statTotal">—</div>
+      <div class="stat-label">Total Scans</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🛡️</div>
+      <div class="stat-value green" id="statSafe">—</div>
+      <div class="stat-label">Safe</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🚨</div>
+      <div class="stat-value red" id="statVuln">—</div>
+      <div class="stat-label">Vulnerable</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">💀</div>
+      <div class="stat-value yellow" id="statCritical">—</div>
+      <div class="stat-label">Critical</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🕐</div>
+      <div class="stat-value purple" id="statLastScan" style="font-size:12px;">—</div>
+      <div class="stat-label">Last Scan</div>
+    </div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filter-bar">
+    <input class="filter-input" id="searchInput" type="text" placeholder="🔍 Search by URL…" oninput="filterScans()" />
+    <div class="vsep"></div>
+    <div class="filter-tags" id="filterTags">
+      <span class="ftag active" data-filter="all" onclick="setFilter('all')">All</span>
+      <span class="ftag" data-filter="safe" onclick="setFilter('safe')">Safe</span>
+      <span class="ftag" data-filter="high" onclick="setFilter('high')">Vulnerable</span>
+      <span class="ftag" data-filter="critical" onclick="setFilter('critical')">Critical</span>
+    </div>
+    <div class="vsep"></div>
+    <div class="filter-count" id="filterCount">Loading…</div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-wrap" id="tableWrap">
+    <table class="scan-table" id="scanTable">
+      <thead>
+        <tr>
+          <th style="width:30px; text-align:center;"><input type="checkbox" id="selectAllCb" onclick="toggleSelectAll()" style="cursor:pointer;" /></th>
+          <th onclick="sortBy('id')">#</th>
+          <th onclick="sortBy('timestamp')">Date</th>
+          <th onclick="sortBy('url')">URL</th>
+          <th onclick="sortBy('method')">Method</th>
+          <th onclick="sortBy('mode')">Mode</th>
+          <th onclick="sortBy('verdict')">Verdict</th>
+          <th>Risk</th>
+          <th>Cred</th>
+        </tr>
+      </thead>
+      <tbody id="scanBody"></tbody>
+    </table>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-text">CORS Vulnerability Checker — Admin Dashboard | <a href="https://www.linkedin.com/in/ramprasadsahoo/" target="_blank" style="color:var(--dim); text-decoration:none; transition:color 0.15s;" onmouseover="this.style.color='#0a66c2';" onmouseout="this.style.color='var(--dim)';">by ram prasad</a></div>
+    <div class="footer-text" id="footerInfo"></div>
+  </div>
+
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="mh-left">
+        <div class="mh-dot"></div>
+        <div class="mh-title">// Scan Detail</div>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <button class="top-btn red" id="modalDeleteBtn">🗑 Delete</button>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const TOKEN = sessionStorage.getItem('admin_token');
+if (!TOKEN) { window.location.href = '/admin'; }
+
+const headers = { 'X-Admin-Token': TOKEN, 'Content-Type': 'application/json' };
+let allScans = [];
+let currentFilter = 'all';
+let sortField = 'id';
+let sortDir = -1; // descending
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LOAD DATA
+// ═══════════════════════════════════════════════════════════════════════════════
+async function loadStats() {
+  try {
+    const res = await fetch('/api/stats', { headers });
+    if (res.status === 401) { sessionStorage.removeItem('admin_token'); location.href='/admin'; return; }
+    const data = await res.json();
+    document.getElementById('statTotal').textContent = data.total;
+    document.getElementById('statSafe').textContent = data.safe;
+    document.getElementById('statVuln').textContent = data.vulnerable;
+    document.getElementById('statCritical').textContent = data.critical;
+    if (data.last_scan) {
+      const d = new Date(data.last_scan);
+      document.getElementById('statLastScan').textContent =
+        d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) + ' ' +
+        d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    } else {
+      document.getElementById('statLastScan').textContent = 'No scans yet';
+    }
+  } catch(e) { console.error('Stats error:', e); }
+}
+
+async function loadScans() {
+  try {
+    const res = await fetch('/api/scans', { headers });
+    if (res.status === 401) { sessionStorage.removeItem('admin_token'); location.href='/admin'; return; }
+    const data = await res.json();
+    allScans = data.scans || [];
+    renderTable();
+  } catch(e) { console.error('Scans error:', e); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RENDER TABLE
+// ═══════════════════════════════════════════════════════════════════════════════
+function renderTable() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+
+  let filtered = allScans.filter(s => {
+    // search filter
+    if (search && !s.url.toLowerCase().includes(search)) return false;
+    // verdict filter
+    if (currentFilter === 'all') return true;
+    if (currentFilter === 'safe') return s.risk_level === 'safe';
+    if (currentFilter === 'high') return s.risk_level === 'high' || s.risk_level === 'critical';
+    if (currentFilter === 'critical') return s.risk_level === 'critical';
+    return true;
+  });
+
+  // sort
+  filtered.sort((a, b) => {
+    let va = a[sortField] || '';
+    let vb = b[sortField] || '';
+    if (typeof va === 'string') va = va.toLowerCase();
+    if (typeof vb === 'string') vb = vb.toLowerCase();
+    if (va < vb) return -1 * sortDir;
+    if (va > vb) return 1 * sortDir;
+    return 0;
+  });
+
+  document.getElementById('filterCount').textContent =
+    `${filtered.length} of ${allScans.length} scans`;
+
+  document.getElementById('selectAllCb').checked = false;
+
+  if (filtered.length === 0) {
+    document.getElementById('scanBody').innerHTML = `
+      <tr><td colspan="9">
+        <div class="empty-state">
+          <div class="icon">${allScans.length ? '🔍' : '📭'}</div>
+          <div class="msg">${allScans.length ? 'No matching scans' : 'No scan history yet'}</div>
+          <div class="sub">${allScans.length ? 'Try a different search or filter' : 'Run a scan from the main page to see data here'}</div>
+        </div>
+      </td></tr>`;
+    updateDeleteBtn();
+    return;
+  }
+
+  let html = '';
+  filtered.forEach(s => {
+    const d = new Date(s.timestamp);
+    const dateStr = d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}) +
+                    ' ' + d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+
+    const verdictClass = s.risk_level === 'critical' ? 'critical' :
+                         s.risk_level === 'high' ? 'vuln' :
+                         s.risk_level === 'safe' ? 'safe' : 'info';
+
+    const shortVerdict = s.verdict.length > 35 ? s.verdict.substring(0, 35) + '…' : s.verdict;
+
+    html += `<tr onclick="showDetail(${s.id})">
+      <td style="text-align:center;" onclick="event.stopPropagation()"><input type="checkbox" class="cb-scan" value="${s.id}" onclick="updateDeleteBtn()" style="cursor:pointer;" /></td>
+      <td class="td-id">${s.id}</td>
+      <td class="td-time">${esc(dateStr)}</td>
+      <td class="td-url" title="${esc(s.url)}">${esc(s.url)}</td>
+      <td><span class="td-method">${esc(s.method)}</span></td>
+      <td><span class="td-mode ${s.mode==='deep'?'deep':''}">${esc(s.mode)}</span></td>
+      <td><span class="verdict-badge ${verdictClass}">${esc(shortVerdict)}</span></td>
+      <td><span class="risk-dot ${esc(s.risk_level)}"></span></td>
+      <td>${s.with_credentials ? '🔐' : '—'}</td>
+    </tr>`;
+  });
+  document.getElementById('scanBody').innerHTML = html;
+  updateDeleteBtn();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FILTERS & SORT
+// ═══════════════════════════════════════════════════════════════════════════════
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.ftag').forEach(t => {
+    t.classList.remove('active', 'active-red', 'active-yellow');
+    if (t.dataset.filter === f) {
+      if (f === 'high') t.classList.add('active-red');
+      else if (f === 'critical') t.classList.add('active-yellow');
+      else t.classList.add('active');
+    }
+  });
+  renderTable();
+}
+
+function filterScans() { renderTable(); }
+
+function sortBy(field) {
+  if (sortField === field) sortDir *= -1;
+  else { sortField = field; sortDir = -1; }
+  renderTable();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DETAIL MODAL
+// ═══════════════════════════════════════════════════════════════════════════════
+async function showDetail(id) {
+  try {
+    const res = await fetch(`/api/scans/${id}`, { headers });
+    const s = await res.json();
+
+    const d = new Date(s.timestamp);
+    const dateStr = d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) +
+                    ' ' + d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
+    const verdictClass = s.risk_level === 'critical' ? 'critical' :
+                         s.risk_level === 'high' ? 'vuln' :
+                         s.risk_level === 'safe' ? 'safe' : 'info';
+
+    let html = `
+      <div class="detail-section">
+        <div class="detail-title">// Scan Overview</div>
+        <div class="detail-row"><div class="detail-key">Scan ID</div><div class="detail-val">#${s.id}</div></div>
+        <div class="detail-row"><div class="detail-key">Timestamp</div><div class="detail-val">${esc(dateStr)}</div></div>
+        <div class="detail-row"><div class="detail-key">Target URL</div><div class="detail-val">${esc(s.url)}</div></div>
+        <div class="detail-row"><div class="detail-key">HTTP Method</div><div class="detail-val">${esc(s.method)}</div></div>
+        <div class="detail-row"><div class="detail-key">Scan Mode</div><div class="detail-val">${esc(s.mode)}</div></div>
+        <div class="detail-row"><div class="detail-key">Credentials</div><div class="detail-val ${s.with_credentials?'purple':''}">${s.with_credentials?'Yes — WITH CREDENTIALS':'No'}</div></div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-title ${s.risk_level==='safe'?'':'red'}">// Verdict</div>
+        <div style="margin-bottom:8px"><span class="verdict-badge ${verdictClass}">${esc(s.verdict)}</span></div>
+        <div class="detail-row">
+          <div class="detail-key">Risk Level</div>
+          <div class="detail-val ${s.risk_level==='safe'?'green':'red'}">${esc(s.risk_level.toUpperCase())}</div>
+        </div>
+      </div>`;
+
+    // Headers
+    if (s.headers && Object.keys(s.headers).length) {
+      html += `<div class="detail-section">
+        <div class="detail-title yellow">// Response Headers</div>`;
+      for (const [k, v] of Object.entries(s.headers)) {
+        const cls = (k.includes('allow-origin') || k.includes('allow-credentials')) ? 'red' : '';
+        html += `<div class="detail-row"><div class="detail-key">${esc(k)}</div><div class="detail-val ${cls}">${esc(v)}</div></div>`;
+      }
+      html += '</div>';
+    }
+
+    // Findings
+    if (s.findings && s.findings.length) {
+      html += `<div class="detail-section">
+        <div class="detail-title red">// Findings (${s.findings.length})</div>
+        <div class="findings-list">`;
+      s.findings.forEach(f => {
+        const isSafe = (f.state || f.status) === 'safe';
+        html += `<div class="finding-item ${isSafe?'safe':''}">
+          <span class="finding-icon">${isSafe?'✔':'✘'}</span>
+          <span>${esc(f.label || f.name || f)}: ${esc(f.detail || f.description || '')}</span>
+        </div>`;
+      });
+      html += '</div></div>';
+    }
+
+    // Response preview
+    if (s.response_preview) {
+      html += `<div class="detail-section">
+        <div class="detail-title purple">// Response Preview</div>
+        <div class="detail-code">${esc(s.response_preview)}</div>
+      </div>`;
+    }
+
+    document.getElementById('modalBody').innerHTML = html;
+    
+    // Bind single delete button
+    document.getElementById('modalDeleteBtn').onclick = () => deleteSingle(s.id);
+
+    document.getElementById('modalOverlay').classList.add('on');
+  } catch(e) {
+    console.error('Detail error:', e);
+  }
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('on');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+async function exportScans() {
+  window.open(`/api/scans/export?token=${TOKEN}`, '_blank');
+}
+
+function toggleSelectAll() {
+  const isChecked = document.getElementById('selectAllCb').checked;
+  const cbs = document.querySelectorAll('.cb-scan');
+  cbs.forEach(cb => cb.checked = isChecked);
+  updateDeleteBtn();
+}
+
+function updateDeleteBtn() {
+  const checked = document.querySelectorAll('.cb-scan:checked').length;
+  const btnDel = document.getElementById('btnDeleteSel');
+  const btnClear = document.getElementById('btnClearAll');
+  if (checked > 0) {
+    btnDel.style.display = 'flex';
+    btnDel.textContent = `🗑 Delete Selected (${checked})`;
+    btnClear.style.display = 'none';
+  } else {
+    btnDel.style.display = 'none';
+    btnClear.style.display = 'flex';
+  }
+}
+
+async function deleteSelected() {
+  const checked = document.querySelectorAll('.cb-scan:checked');
+  const ids = Array.from(checked).map(cb => parseInt(cb.value));
+  if (ids.length === 0) return;
+  
+  if (!confirm(`Are you sure you want to delete ${ids.length} scan(s)?`)) return;
+  
+  try {
+    await fetch('/api/scans/batch_delete', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ ids })
+    });
+    document.getElementById('selectAllCb').checked = false;
+    loadScans();
+    loadStats();
+  } catch(e) { alert('Error deleting scans.'); }
+}
+
+async function deleteSingle(id) {
+  if (!confirm('Are you sure you want to delete this specific scan?')) return;
+  try {
+    await fetch('/api/scans/batch_delete', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ ids: [id] })
+    });
+    closeModal();
+    loadScans();
+    loadStats();
+  } catch(e) { alert('Error deleting scan.'); }
+}
+
+async function clearHistory() {
+  if (!confirm('⚠ Delete ALL scan history? This cannot be undone.')) return;
+  if (!confirm('Are you really sure? All data will be permanently deleted.')) return;
+  try {
+    await fetch('/api/scans', { method:'DELETE', headers });
+    allScans = [];
+    renderTable();
+    loadStats();
+  } catch(e) { alert('Error clearing history.'); }
+}
+
+function logout() {
+  fetch('/api/logout', { method:'POST', headers }).catch(()=>{});
+  sessionStorage.removeItem('admin_token');
+  location.href = '/admin';
+}
+
+// ESC to close modal
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════════════
+loadStats();
+loadScans();
+// Auto-refresh every 30s
+setInterval(() => { loadStats(); loadScans(); }, 30000);
+</script>
+</body>
+</html>
