@@ -719,8 +719,49 @@ function generateExploitPayloads(targetUrl,finding){
 
   const html=`<!DOCTYPE html>
 <html>
-<head><title>CORS Exploit PoC — ${finding.label}</title></head>
+<head>
+<title>CORS Exploit PoC — ${finding.label}</title>
+<style>
+  .poc-watermark-wrap {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: 1px solid #333;
+  }
+  .poc-watermark-text {
+    color: #ccc;
+  }
+  .poc-watermark {
+    background: #ff4455;
+    color: #fff;
+    padding: 4px 10px;
+    text-decoration: none;
+    font-weight: bold;
+    border-radius: 4px;
+    box-shadow: 0 0 10px rgba(255,68,85,0.4);
+    transition: all 0.2s;
+  }
+  .poc-watermark:hover {
+    background: #ff6677;
+    box-shadow: 0 0 15px rgba(255,68,85,0.6);
+    transform: translateY(-1px);
+  }
+</style>
+</head>
 <body>
+<div class="poc-watermark-wrap">
+  <span class="poc-watermark-text">You can check here 👉</span>
+  <a href="https://corschecker.pythonanywhere.com/" target="_blank" class="poc-watermark">CORS Checker</a>
+</div>
 <h2>CORS Exploit: ${finding.label} (${finding.vulnType})</h2>
 <p>Target: ${targetUrl}</p>
 <p>Origin: ${origin}</p>
