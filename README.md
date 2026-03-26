@@ -39,6 +39,10 @@ A powerful, browser-based Cross-Origin Resource Sharing (CORS) vulnerability tes
    ```text
    http://127.0.0.1:5000/
    ```
+```md
+5. Open In web:  
+   [Open in Web](https://corschecker.pythonanywhere.com/)
+```
 
 ## Admin Dashboard
 
